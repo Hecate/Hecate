@@ -879,6 +879,7 @@ pub fn history(conn: &impl postgres::GenericConnection, feat_id: i64) -> Result<
                 'uid', deltas.uid,
                 'feat', JSON_Build_Object(
                     'id', geo_history.id,
+                    'revert': geo_history.revert,
                     'action', geo_history.action,
                     'key', geo_history.key,
                     'type', 'Feature',
@@ -925,6 +926,7 @@ pub fn get_point_history_stream(conn: r2d2::PooledConnection<r2d2_postgres::Post
                     key,
                     delta,
                     'Feature' AS type,
+                    revert,
                     version,
                     ST_AsGeoJSON(geom)::JSON AS geometry,
                     props AS properties
@@ -948,6 +950,7 @@ pub fn get_bbox_history_stream(conn: r2d2::PooledConnection<r2d2_postgres::Postg
                 SELECT
                     id,
                     action,
+                    revert,
                     key,
                     delta,
                     'Feature' AS type,
