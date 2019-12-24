@@ -78,7 +78,7 @@ CREATE TABLE geo_history (
     version     BIGINT NOT NULL,
     geom        GEOMETRY(GEOMETRY, 4326),
     props       JSONB,
-    revert      BOOLEAN,
+    reverted    BOOLEAN,
     PRIMARY KEY (id, version)
 );
 

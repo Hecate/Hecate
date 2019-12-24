@@ -333,9 +333,9 @@ pub fn create(trans: &postgres::transaction::Transaction, schema: &Option<valico
                             $4,
                             $5,
                             $6,
-                            $7
+                            false
                         )
-                ", &[&geom_str, &props_str, &delta, &key, &new, &version, &revert]) {
+                ", &[&geom_str, &props_str, &delta, &key, &new, &version]) {
                     Err(err) => {
                         match err.as_db() {
                             Some(e) => Err(import_error(&feat, e.message.as_str(), None)),
@@ -383,9 +383,9 @@ pub fn create(trans: &postgres::transaction::Transaction, schema: &Option<valico
                             $4,
                             $5,
                             $6,
-                            $7
+                            false
                         ) RETURNING version;
-                ", &[&geom_str, &props_str, &delta, &key, &new, &version, &revert]) {
+                ", &[&geom_str, &props_str, &delta, &key, &new, &version]) {
                     Err(err) => {
                         match err.as_db() {
                             Some(e) => Err(import_error(&feat, e.message.as_str(), None)),
@@ -457,9 +457,9 @@ pub fn modify(trans: &postgres::transaction::Transaction, schema: &Option<valico
                         COALESCE($5, currval('deltas_id_seq')::BIGINT),
                         $6,
                         'modify',
-                        $7
+                        false
                     ) RETURNING version;
-            ", &[&geom_str, &props_str, &id, &version, &delta, &key, &revert]) {
+            ", &[&geom_str, &props_str, &id, &version, &delta, &key]) {
                 Ok(res) => {
                     let new_version: i64 = res.get(0).get(0);
                     Ok(Response {
@@ -515,9 +515,9 @@ pub fn delete(trans: &postgres::transaction::Transaction, feat: &geojson::Featur
                         COALESCE($3, currval('deltas_id_seq')::BIGINT),
                         $4,
                         'delete',
-                        $5
+                        false
                     );
-            ", &[&id, &version, &delta, &key, &revert]) {
+            ", &[&id, &version, &delta, &key]) {
                 Ok(_) => {
                     Ok(Response {
                         old: Some(id),
@@ -739,10 +739,9 @@ pub fn restore(trans: &postgres::transaction::Transaction, schema: &Option<valic
                                 $4,
                                 COALESCE($5, currval('deltas_id_seq')::BIGINT),
                                 $6,
-                                'restore',
-                                $7
+                                'restore'
                             );
-                    ", &[&geom_str, &props_str, &id, &new_version, &delta, &key, &revert]) {
+                    ", &[&geom_str, &props_str, &id, &new_version, &delta, &key]) {
                         Ok(_) => {
                             Ok(Response {
                                 old: Some(id),
