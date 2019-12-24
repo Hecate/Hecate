@@ -324,7 +324,7 @@ pub fn create(trans: &postgres::transaction::Transaction, schema: &Option<valico
                 let version: i64 = res.get(0).get(1);
 
                 match trans.query("
-                    INSERT INTO geo_history (action, geom, props, delta, key, id, version, revert)
+                    INSERT INTO geo_history (action, geom, props, delta, key, id, version, reverted)
                         VALUES (
                             'create',
                             ST_SetSRID(ST_GeomFromGeoJSON($1), 4326),
@@ -374,7 +374,7 @@ pub fn create(trans: &postgres::transaction::Transaction, schema: &Option<valico
                 let version: i64 = res.get(0).get(1);
 
                 match trans.query("
-                    INSERT INTO geo_history (action, geom, props, delta, key, id, version, revert)
+                    INSERT INTO geo_history (action, geom, props, delta, key, id, version, reverted)
                         VALUES (
                             'create',
                             ST_SetSRID(ST_GeomFromGeoJSON($1), 4326),
@@ -448,7 +448,7 @@ pub fn modify(trans: &postgres::transaction::Transaction, schema: &Option<valico
         ", &[&geom_str, &props_str, &id, &version, &delta, &key]) {
         Ok(_) => {
             match trans.query("
-                INSERT INTO geo_history (geom, props, id, version, delta, key, action, revert)
+                INSERT INTO geo_history (geom, props, id, version, delta, key, action, reverted)
                     VALUES (
                         ST_SetSRID(ST_GeomFromGeoJSON($1), 4326),
                         $2::TEXT::JSON,
@@ -508,7 +508,7 @@ pub fn delete(trans: &postgres::transaction::Transaction, feat: &geojson::Featur
     match trans.query("SELECT delete_geo($1, $2);", &[&id, &version]) {
         Ok(_) => {
             match trans.query("
-                INSERT INTO geo_history (id, version, delta, key, action, revert)
+                INSERT INTO geo_history (id, version, delta, key, action, reverted)
                     VALUES (
                         $1,
                         $2::BIGINT + 1,
@@ -731,7 +731,7 @@ pub fn restore(trans: &postgres::transaction::Transaction, schema: &Option<valic
                 Ok(res) => {
                     let new_version: i64 = res.get(0).get(0);
                     match trans.query("
-                        INSERT INTO geo_history (geom, props, id, version, delta, key, action, revert)
+                        INSERT INTO geo_history (geom, props, id, version, delta, key, action, reverted)
                             VALUES (
                                 ST_SetSRID(ST_GeomFromGeoJSON($1), 4326),
                                 $2::TEXT::JSON,
