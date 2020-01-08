@@ -147,6 +147,78 @@ window.hecate = {
             });
         }
     },
+    user: {
+        info: function(cb) {
+            fetch(`${window.location.protocol}//${window.location.host}/api/user/info`, {
+                method: 'GET',
+                credentials: 'same-origin'
+            }).then((response) => {
+                if (response.status !== 200) return res2err(response, cb);
+                return response.json();
+            }).then((users) => {
+                return cb(null, users);
+            }).catch((err) => {
+                return cb(err);
+            });
+        },
+        tokens: function(cb) {
+            fetch(`${window.location.protocol}//${window.location.host}/api/user/tokens`, {
+                method: 'GET',
+                credentials: 'same-origin'
+            }).then((response) => {
+                if (response.status !== 200) return res2err(response, cb);
+                return response.json();
+            }).then((tokens) => {
+                return cb(null, tokens.map((token) => {
+                    token.scope = token.scope.toLowerCase();
+                    if (token.expiry) {
+                        token.expiry = token.expiry.replace(/\..*$/, '');
+                    }
+                    return token;
+                }));
+            }).catch((err) => {
+                return cb(err);
+            });
+        },
+        token: {
+            create: function(token, cb) {
+                fetch(`${window.location.protocol}//${window.location.host}/api/user/token`, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: new Headers({
+                        'Content-Type': 'application/json'
+                    }),
+                    body: JSON.stringify(token)
+                }).then((response) => {
+                    if (response.status !== 200) return res2err(response, cb);
+                    return response.json();
+                }).then((token) => {
+                    return cb(null, token);
+                }).catch((err) => {
+                    return cb(err);
+                });
+            },
+            delete: function(token, cb) {
+                if (!token) return cb(new Error('Token ID required'));
+
+                fetch(`${window.location.protocol}//${window.location.host}/api/user/token/${token}`, {
+                    method: 'DELETE',
+                    credentials: 'same-origin',
+                    headers: new Headers({
+                        'Content-Type': 'application/json'
+                    }),
+                    body: JSON.stringify(token)
+                }).then((response) => {
+                    if (response.status !== 200) return res2err(response, cb);
+                    return response.json();
+                }).then((token) => {
+                    return cb(null, token);
+                }).catch((err) => {
+                    return cb(err);
+                });
+            }
+        }
+    },
     users: {
         list: function(filter, cb) {
             fetch(`${window.location.protocol}//${window.location.host}/api/users?filter=${filter}`, {

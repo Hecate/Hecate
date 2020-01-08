@@ -216,11 +216,15 @@ pub fn start(
                         .route(web::get().to_async(user_create_session))
                         .route(web::delete().to_async(user_delete_session))
                     )
+                    .service(web::resource("tokens")
+                        .route(web::get().to(user_tokens))
+                    )
                     .service(web::resource("token")
-                        .route(web::post().to(user_create_token))
+                        .route(web::post().to_async(user_token_create))
                     )
                     .service(web::resource("token/{token}")
-                        .route(web::delete().to(user_delete_token))
+                        .route(web::delete().to(user_token_delete))
+                        .route(web::get().to(user_token))
                     )
                     .service(web::resource("{uid}")
                         .route(web::get().to(user_info))
@@ -691,11 +695,11 @@ fn user_create_session(
 
         let uid = auth.uid.unwrap();
 
-        Ok(user::Token::create(&*conn.get()?, "Session Token", uid, HOURS, user::token::Scope::Full)?)
+        Ok(user::Token::create(&*conn.get()?, "Session Token", uid, Some(HOURS), user::token::Scope::Full)?)
     }).then(|res: Result<user::Token, actix_threadpool::BlockingError<HecateError>>| match res {
         Ok(token) => {
 
-            let cookie = actix_http::http::Cookie::build("session", token.token)
+            let cookie = actix_http::http::Cookie::build("session", token.token()?)
                 .path("/")
                 .http_only(true)
                 .max_age(HOURS * 60 * 60)
@@ -748,36 +752,40 @@ fn user_delete_session(
     })
 }
 
-fn user_create_token(
-    conn: web::Data<DbReadWrite>,
+fn user_tokens(
+    conn: web::Data<DbReplica>,
     auth: auth::Auth,
-    auth_rules: web::Data<auth::AuthContainer>,
-    token: web::Query<Token>
+    auth_rules: web::Data<auth::AuthContainer>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    auth::check(&auth_rules.0.user.create_session, auth::RW::Full, &auth)?;
+    auth::check(&auth_rules.0.user.info, auth::RW::Read, &auth)?;
 
-    let token = token.into_inner();
-
-    let uid = auth.uid.unwrap();
-
-    let scope = match token.scope {
-        Some(scope) => match scope.as_str() {
-            "full" => user::token::Scope::Full,
-            "read" => user::token::Scope::Read,
-            _ => {
-                return Err(HecateError::new(400, String::from("Invalid Token Scope"), None));
-            },
-        },
-        None => user::token::Scope::Read
+    let uid = match auth.uid {
+        Some(uid) => uid,
+        None => { return Err(HecateError::generic(401)); }
     };
 
-    let token = user::Token::create(
-        &*conn.get()?,
-        token.name.unwrap_or_else(|| String::from("Access Token")),
-        uid,
-        token.hours.unwrap_or(16),
-        scope
-    )?;
+    let tokens = user::token::list(&*conn.get()?, uid)?;
+
+    match serde_json::to_value(tokens) {
+        Ok(tokens) => Ok(Json(tokens)),
+        Err(_) => Err(HecateError::new(500, String::from("Internal Server Error"), None))
+    }
+}
+
+fn user_token(
+    conn: web::Data<DbReplica>,
+    auth: auth::Auth,
+    auth_rules: web::Data<auth::AuthContainer>,
+    token: web::Path<String>
+) -> Result<Json<serde_json::Value>, HecateError> {
+    auth::check(&auth_rules.0.user.info, auth::RW::Read, &auth)?;
+
+    let uid = match auth.uid {
+        Some(uid) => uid,
+        None => { return Err(HecateError::generic(401)); }
+    };
+
+    let token = user::Token::get(&*conn.get()?, uid, &token.into_inner())?;
 
     match serde_json::to_value(token) {
         Ok(token) => Ok(Json(token)),
@@ -785,7 +793,62 @@ fn user_create_token(
     }
 }
 
-fn user_delete_token(
+fn user_token_create(
+    conn: web::Data<DbReadWrite>,
+    auth: auth::Auth,
+    auth_rules: web::Data<auth::AuthContainer>,
+    body: web::Payload
+) -> impl Future<Item = Json<serde_json::Value>, Error = HecateError> {
+    if let Err(err) = auth::check(&auth_rules.0.user.create_session, auth::RW::Full, &auth) {
+        return Either::A(futures::future::err(err));
+    }
+
+    Either::B(body.map_err(HecateError::from).fold(bytes::BytesMut::new(), move |mut body, chunk| {
+        body.extend_from_slice(&chunk);
+        Ok::<_, HecateError>(body)
+    }).and_then(move |body| {
+        let body = match String::from_utf8(body.to_vec()) {
+            Ok(body) => body,
+            Err(err) => { return Err(HecateError::new(400, String::from("Invalid UTF8 Body"), Some(err.to_string()))); }
+        };
+
+        let token: Token = match serde_json::from_str(&*body) {
+            Ok(token) => match serde_json::from_value(token) {
+                Ok(token) => token,
+                Err(err) => { return Err(HecateError::new(500, String::from("Failed to deserialize token"), Some(err.to_string()))); }
+            },
+            Err(err) => { return Err(HecateError::new(400, String::from("Invalid JSON"), Some(err.to_string()))); }
+        };
+
+        let uid = auth.uid.unwrap();
+
+        let scope = match token.scope {
+            Some(scope) => match scope.as_str() {
+                "full" => user::token::Scope::Full,
+                "read" => user::token::Scope::Read,
+                _ => {
+                    return Err(HecateError::new(400, String::from("Invalid Token Scope"), None));
+                },
+            },
+            None => user::token::Scope::Read
+        };
+
+        let token = user::Token::create(
+            &*conn.get()?,
+            token.name.unwrap_or_else(|| String::from("Access Token")),
+            uid,
+            token.hours,
+            scope
+        )?;
+
+        match serde_json::to_value(token) {
+            Ok(token) => Ok(Json(token)),
+            Err(_) => Err(HecateError::new(500, String::from("Internal Server Error"), None))
+        }
+    }))
+}
+
+fn user_token_delete(
     conn: web::Data<DbReadWrite>,
     auth_rules: web::Data<auth::AuthContainer>,
     auth: auth::Auth,

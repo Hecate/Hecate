@@ -3,6 +3,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS hstore;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 DROP TABLE IF EXISTS webhooks;
 CREATE TABLE webhooks (
@@ -48,11 +49,12 @@ CREATE TABLE users (
 
 DROP TABLE IF EXISTS users_tokens;
 CREATE TABLE users_tokens (
-    name        TEXT,
-    uid         BIGINT,
+    id          UUID UNIQUE NOT NULL,
+    name        TEXT NOT NULL,
+    uid         BIGINT NOT NULL,
     token       TEXT PRIMARY KEY,
     expiry      TIMESTAMP,
-    scope       TEXT
+    scope       TEXT NOT NULL
 );
 
 DROP TABLE IF EXISTS geo;
