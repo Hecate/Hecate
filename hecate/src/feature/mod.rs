@@ -917,19 +917,39 @@ pub fn get_bbox_history_stream(conn: r2d2::PooledConnection<r2d2_postgres::Postg
 }
 
 pub fn hard_delete(trans: &postgres::transaction::Transaction, feature_id: i64) -> Result<(), HecateError> {
-    if let Err(err) = conn.execute("
+    if let Err(err) = trans.execute("
         DELETE FROM geo
             WHERE
                 id = $1
     ", &[&feature_id]) {
-        return Err(HecateError::new(500, String::from("Failed to Hard Delete"), err.to_string()));
+        return Err(HecateError::new(500, String::from("Failed to Hard Delete"), Some(err.to_string())));
     }
 
-    if let Err(err) = conn.execute("
+    let delta_id: i64 = match trans.query("
         DELETE FROM geo_history
             WHERE
                 id = $1
+            RETURNING
+                delta
     ", &[&feature_id]) {
-        return Err(HecateError::new(500, String::from("Failed to Hard Delete"), err.to_string()));
+        Ok(rows) => rows.get(0).get(0),
+        Err(err) => { return Err(HecateError::new(500, String::from("Failed to Hard Delete"), Some(err.to_string()))); }
+    };
+
+    if let Err(err) = trans.execute("
+        UPDATE deltas
+            SET
+                affected = (
+                    SELECT
+                        ARRAY_AGG(id)
+                    FROM
+                        geo_history
+                    WHERE
+                        delta = $1
+                )
+    ", &[&delta_id]) {
+        return Err(HecateError::new(500, String::from("Failed to Hard Delete"), Some(err.to_string())));
     }
+
+    Ok(())
 }

@@ -1840,22 +1840,21 @@ fn feature_delete(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     id: web::Path<i64>
-) -> impl Future<Item = Json<serde_json::Value, Error = HecateError> {
+) -> impl Future<Item = Json<serde_json::Value>, Error = HecateError> {
     web::block(move || {
         auth::check(&auth_rules.0.feature.get, auth::RW::Read, &auth)?;
 
-        match feature::hard_delete(&*conn.get()?, id.into_inner()) {
-            Ok(feature) => Ok(geojson::GeoJson::from(feature).to_string()),
-            Err(err) => Err(err)
-        }
-    }).then(|res: Result<String, actix_threadpool::BlockingError<HecateError>>| match res {
-        Ok(feature) => {
-            Ok(HttpResponse::build(actix_web::http::StatusCode::OK)
-                .content_type("application/json")
-                .content_length(feature.len() as u64)
-                .body(feature))
-        },
-        Err(err) => Ok(HecateError::from(err).error_response())
+        let conn = &*conn.get()?;
+
+        let trans = match (&conn).transaction() {
+            Ok(trans) => trans,
+            Err(err) => { return Err(HecateError::new(500, String::from("Failed to open transaction"), Some(err.to_string()))); }
+        };
+
+        feature::hard_delete(&trans, id.into_inner())
+    }).then(|res: Result<(), actix_threadpool::BlockingError<HecateError>>| match res {
+        Err(err) => Err(err.into()),
+        _ => Ok(Json(json!(true)))
     })
 }
 
