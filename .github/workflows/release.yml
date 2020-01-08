@@ -24,7 +24,7 @@ jobs:
         run: cargo build --release
       - name: Build Web
         run: |
-            npm install -g yarn \
+            sudo npm install -g yarn \
             && cd ./hecate_ui \
             && yarn install \
             && yarn build \
