@@ -1490,6 +1490,31 @@ curl -X GET 'http://localhost:8000/api/data/feature/1542'
 
 ---
 
+#### `DELETE` `/api/data/feature/<id>`
+
+Permanently remove a feature from the system including
+- Active feature
+- All past history of the feature
+- Any reference to the feature in stored deltas
+
+This action is internally called a `hard delete`
+
+Note: Only an `admin` user can perform a hard delete.
+
+*Options*
+
+| Option | Notes |
+| :----: | ----- |
+| `<id>` | `REQUIRED` Numeric ID of a given feature to delete |
+
+*Example*
+
+```bash
+curl -X DELETE 'http://localhost:8000/api/data/feature/1542'
+```
+
+---
+
 #### `GET` `/api/data/feature/<id>/history`
 
 Return an array containing the full feature history for the provided feature id.
