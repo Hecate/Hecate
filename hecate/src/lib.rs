@@ -1852,19 +1852,23 @@ fn feature_delete(
         };
 
         match feature::hard_delete(&trans, id.into_inner()) {
-
-        }
-    }).then(|res: Result<(), actix_threadpool::BlockingError<HecateError>>| match res {
-        Err(err) => {
+            Err(err) => {
                 trans.set_rollback();
                 trans.finish().unwrap();
-            
-            Err(err.into())
-        },
-        _ => {
-            trans.finish().unwrap();
-            Ok(Json(json!(true)))
+                println!("ERROR");
+                Err(err)
+            },
+            _ => {
+                if trans.commit().is_err() {
+                    return Err(HecateError::new(500, String::from("Failed to commit transaction"), None));
+                }
+
+                Ok(())
+            }
         }
+    }).then(|res: Result<(), actix_threadpool::BlockingError<HecateError>>| match res {
+        Err(err) => Err(err.into()),
+        _ => Ok(Json(json!(true)))
     })
 }
 

@@ -925,14 +925,16 @@ pub fn hard_delete(trans: &postgres::transaction::Transaction, feature_id: i64) 
         return Err(HecateError::new(500, String::from("Failed to Hard Delete"), Some(err.to_string())));
     }
 
-    let delta_id: i64 = match trans.query("
+    let delta_ids: Vec<i64> = match trans.query("
         DELETE FROM geo_history
             WHERE
                 id = $1
             RETURNING
                 delta
     ", &[&feature_id]) {
-        Ok(rows) => rows.get(0).get(0),
+        Ok(rows) => rows.iter().map(|row| {
+            row.get(0)
+        }).collect(),
         Err(err) => { return Err(HecateError::new(500, String::from("Failed to Hard Delete"), Some(err.to_string()))); }
     };
 
@@ -945,9 +947,9 @@ pub fn hard_delete(trans: &postgres::transaction::Transaction, feature_id: i64) 
                     FROM
                         geo_history
                     WHERE
-                        delta = $1
+                        delta = ANY(($1)::BIGINT[])
                 )
-    ", &[&delta_id]) {
+    ", &[&delta_ids]) {
         return Err(HecateError::new(500, String::from("Failed to Hard Delete"), Some(err.to_string())));
     }
 

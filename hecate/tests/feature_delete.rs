@@ -155,7 +155,7 @@ mod test {
 
         { // Retrieve feature 1 history
             let client = reqwest::Client::new();
-            let mut resp = client.get("http://0.0.0.0:8000/api/data/feature/1/history")
+            let resp = client.get("http://0.0.0.0:8000/api/data/feature/1/history")
                 .basic_auth("ingalls", Some("yeahehyeah"))
                 .send()
                 .unwrap();
