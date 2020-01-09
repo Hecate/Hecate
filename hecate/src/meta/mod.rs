@@ -19,11 +19,16 @@ impl Meta {
         let key = key.to_string();
 
         match conn.query("
-            SELECT value::JSON FROM meta WHERE key = $1;
+            SELECT
+                value::JSON
+            FROM
+                meta
+            WHERE
+                key = $1;
         ", &[&key]) {
             Ok(rows) => {
                 if rows.is_empty() {
-                    Ok(Meta::new(key, json!(false)))
+                    return Err(HecateError::new(404, String::from("Key not found"), None));
                 } else {
                     Ok(Meta::new(key, rows.get(0).get(0)))
                 }
@@ -45,6 +50,26 @@ impl Meta {
         }
     }
 
+    pub fn delete(conn: &impl postgres::GenericConnection, key: &str) -> Result<Self, HecateError> {
+        match conn.query("
+            DELETE FROM meta
+                WHERE
+                    key = $1
+                RETURNING
+                    key,
+                    value
+        ", &[ &key ]) {
+            Ok(rows) => {
+                if rows.is_empty() {
+                    return Err(HecateError::new(404, String::from("Key not found"), None));
+                }
+
+                Ok(Meta::new(key.into(), rows.get(0).get(0)))
+            },
+            Err(err) => Err(HecateError::from_db(err))
+        }
+    }
+
 }
 
 pub fn list(conn: &impl postgres::GenericConnection) -> Result<Vec<String>, HecateError> {
@@ -60,15 +85,6 @@ pub fn list(conn: &impl postgres::GenericConnection) -> Result<Vec<String>, Heca
 
             Ok(names)
         },
-        Err(err) => Err(HecateError::from_db(err))
-    }
-}
-
-pub fn delete(conn: &impl postgres::GenericConnection, key: &str) -> Result<bool, HecateError> {
-    match conn.query("
-        DELETE FROM meta WHERE key = $1
-    ", &[ &key ]) {
-        Ok(_) => Ok(true),
         Err(err) => Err(HecateError::from_db(err))
     }
 }

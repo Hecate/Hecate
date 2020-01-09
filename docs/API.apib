@@ -2,33 +2,155 @@
 
 # Group Server
 
-## GET /
+## HealthCheck [/]
+
+## / [GET]
+
+Serves as a healthcheck for the server
+
 + Response 200 (text/plain)
+    + Body
 
-        Hello World!
+                Hello World!
 
-## Meta [/api/meta/{key}]
+## Group Metadata
+
+### Meta Listing [/api/meta]
+
+Return an array containing all the meta keys stored on the server
+
+Meta data provides a simple interface for storing server wide `key:value`
+pairs that can be used by Hecate clients. Most notably the default admin UI
+will use this API for setting things like; default layers, data license, server name, etc.
+
+#### /api/meta [GET]
+
++ Response 200 (application/json)
+    + Body
+
+                [
+                    "name",
+                    "layers"
+                [
+
+### Meta [/api/meta/{key}]
 
 + Parameters
     + key: name (String) - A unique key for referencing a value
 
-### Metadata [POST]
+#### /api/meta/{key} [POST]
 
-+ Response 200 (text/plain)
+Create and store a new `key:value` pair, overwriting any existing value.
+
+The key should be the URL encoded `{key}` value, while the value can be any JSON
+value included in the request body.
+
++ Request JSON Value
+
+    + Headers
+
+            Content-Type: application/json
+
     + Body
 
-                Test Response
+            "Cool Hecate Server"
 
-### Metadata [GET]
-
-+ Response 200 (text/plain)
++ Response 200 (application/json)
     + Body
 
-                Test Response
+                {
+                    "key": "name",
+                    "value": "Cool Hecate Server"
+                }
 
-### Metadata [DELETE]
+#### /api/meta/{key} [GET]
 
-+ Response 200 (text/plain)
+Return the `key:value` pair for the requested `{key}` value.
+
++ Response 200 (application/json)
     + Body
 
-                Test Response
+                {
+                    "key": "name",
+                    "value": "Cool Hecate Server"
+                }
+
++ Response 404 (application/json)
+    + Body
+
+                {
+                    "code": 404,
+                    "reason", "Key not found",
+                    "status", "Not Found"
+                }
+
+#### /api/meta/{key} [DELETE]
+
+Permanently remove the `key:value` pair for the requested `{key}` value,
+returning the deleted `key:value` pair.
+
++ Response 200 (application/json)
+
+    The metadata object was deleted successfully.
+
+    + Body
+
+                {
+                    "key": "name",
+                    "value": "Cool Hecate Server"
+                }
+
++ Response 404 (application/json)
+
+    The requested `{key}` could not be found on the server
+
+    + Body
+
+                {
+                    "key": "name",
+                    "value": "Cool Hecate Server"
+                }
+
+## Group Authentication
+
+### Authentication [/api/auth]
+
+#### /api/auth [GET]
+
+Return a Custom Authentication JSON object, documenting what permissions
+are required for any given API endpoint on the server. Used by both the Admin UI
+and HecateJS to determine if auth is needed before making a given API request.
+
++ Response 200 (application/json)
+    + Body
+
+                {
+                    "See Custom Auth for example"
+                }
+
+## Group Style
+
+## Group JSON Schema
+
+### JSON Schema [/api/schema]
+
+#### /api/schema [GET]
+
+Return a [JSON Schema](https://json-schema.org/) that all Feature properties must conform to.
+
++ Response 200 (application/json)
+    + Body
+
+                {
+                    "See JSON Schema link for examples"
+                }
+
+## Group Deltas
+
+## Group Webhooks
+
+## Group Tiles
+
+## Group Users
+
+## Group Data
