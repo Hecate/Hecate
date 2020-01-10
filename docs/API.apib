@@ -4,7 +4,7 @@
 
 ## HealthCheck [/]
 
-## / [GET]
+### / [GET]
 
 Serves as a healthcheck for the server
 
@@ -13,9 +13,37 @@ Serves as a healthcheck for the server
 
                 Hello World!
 
+## Server Info [/api]
+
+### API /api [GET]
+
+Return a JSON object containing information about the server
+
++ Response 200 (application/json)
+    + Body
+
+                {
+                    "constraints": {
+                        "request": {
+                            "max_size": 20971520
+                        }
+                    },
+                    "version": "0.85.0"
+                }
+
+# Group Admin UI
+
+## Admin UI [/admin]
+
+If an admin UI folder was specified when the server was started, serve it at `/admin`
+
+## /admin [GET]
+
++ Response 200
+
 ## Group Metadata
 
-### Meta Listing [/api/meta]
+### All Meta [/api/meta]
 
 Return an array containing all the meta keys stored on the server
 
@@ -33,7 +61,7 @@ will use this API for setting things like; default layers, data license, server 
                     "layers"
                 [
 
-### Meta [/api/meta/{key}]
+### Individual Meta [/api/meta/{key}]
 
 + Parameters
     + key: name (String) - A unique key for referencing a value
@@ -128,7 +156,70 @@ and HecateJS to determine if auth is needed before making a given API request.
                     "See Custom Auth for example"
                 }
 
-## Group Style
+## Group Styles
+
+### Server Styles [/api/styles]
+
+#### /api/styles [GET]
+
+Return an array containing a reference to every public style
+
++ Response 200 (application/json)
+    + Body
+
+                [{
+                    "id": 1,
+                    "name": "Style Name",
+                    "public": true,
+                    "uid": 1,,
+                    "username": "ingalls"
+                }]
+
+### User Styles [/api/styles/{uid}]
+
++ Parameters
+    + uid: 1 (integer) - The user ID to lookup styles for
+
+#### /api/styles/{uid} [GET]
+
+Return an array containing styles owned by a particular user.
+
+By default any request will only return the public styles for a given user.
+
+If an authenticated user requests their own styles, it will return their public and private styles.
+
++ Response 200 (application/json)
+
+### Create Stypes [/api/style]
+
+#### /api/style [POST]
+
+Create a new private style attached to the authenticated user
+
++ Response 200 (application/json)
+
+### Individual Styles [/api/style/{style_id}]
+
++ Parameters
+    + style_id: 1 (integer) - The style ID to lookup
+
+#### /api/style/{style_id} [GET]
+
+Get a particular style by id, public styles can be requested unauthenticated, private styles can only be obtained by the corresponding user making the request.
+
++ Response 200 (application/json)
+
+#### /api/style/{style_id} [DELETE]
+
+Delete a particular style by id. Users must be authorized and can only delete styles created by them.
+
++ Response 200 (application/json)
+
+#### /api/style/{style_id} [PATCH]
+
+Update a style - auth required - users can only update their own styles
+
++ Response 200 (application/json)
 
 ## Group JSON Schema
 
@@ -154,3 +245,34 @@ Return a [JSON Schema](https://json-schema.org/) that all Feature properties mus
 ## Group Users
 
 ## Group Data
+
+### Data Stats [/api/data/stats]
+
+#### /api/data/stats [GET]
+
+Return a JSON object containing statistics and metadata about the geometries stored in the server
+
++ Response 200 (application/json)
+    + Body
+
+                {
+                    "bbox":  [0,0,1,1],
+                    "last_calc": null,
+                    "total":0
+                }
+
+### Data Stats Regen [/api/data/stats/regen]
+
+#### /api/data/stats/regen [GET]
+
+Perform an `ANAYLZE` call on the `geo` table to update the global stats.
+
++ Response 200 (application/json)
+    + Body
+
+                {
+                    "bbox":  [0,0,1,1],
+                    "last_calc": null,
+                    "total":0
+                }
+
