@@ -433,15 +433,9 @@ impl Auth {
                     let access: Option<String> = res.get(0).get(1);
                     let scope: Option<String> = res.get(0).get(2);
 
-                    let scope = match scope {
-                        Some(scope) => {
-                            if scope == "" {
-                                Scope::Read
-                            } else {
-                                Scope::Read
-                            }
-                        },
-                        None => Scope::Read
+                    let scope = match &scope {
+                        None => Scope::Read,
+                        Some(scope) => Scope::from_str(scope)?
                     };
 
                     let access = match access {
