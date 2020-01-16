@@ -318,7 +318,6 @@ impl Auth {
                 match base64::decode(&authtype.split_off(6)) {
                     Ok(decoded) => match String::from_utf8(decoded) {
                         Ok(decoded_str) => {
-
                             let split = decoded_str.split(':').collect::<Vec<&str>>();
 
                             if split.len() != 2 { return Err(HecateError::new(401, String::from("Unauthorized"), None)); }
@@ -412,8 +411,8 @@ impl Auth {
             match conn.query("
                 SELECT
                     users_tokens.uid,
-                    users.access,
-                    users.scope
+                    users_tokens.scope,
+                    users.access
                 FROM
                     users_tokens,
                     users
