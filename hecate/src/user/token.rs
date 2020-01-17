@@ -1,4 +1,5 @@
 use crate::err::HecateError;
+use std::str::FromStr;
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug)]
 pub enum Scope {
@@ -11,6 +12,18 @@ impl ToString for Scope {
         match self {
             Scope::Read => String::from("read"),
             Scope::Full => String::from("full")
+        }
+    }
+}
+
+impl FromStr for Scope {
+    type Err = HecateError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "read" => Ok(Scope::Read),
+            "full" => Ok(Scope::Full),
+            _ => Err(HecateError::new(500, String::from("Authentication Error: Scope Mismatch"), None))
         }
     }
 }

@@ -844,6 +844,16 @@ curl -X GET 'http://localhost:8000/api/schema'
 
 <details>
 
+#### General Auth
+
+There are currently several different ways that authentication can take place
+
+- HTTP Basic authentication can be used on all endpoints
+- HTTP Bearer authentication can be used with a Read/Write API token
+- In URL Read token (READ only) `/token/<token>/api` can be used for editors that
+  aren't able to pass authentication via a header. Any readonly API can be accessed
+- Session cookie based authentication
+
 #### `GET` `/api/auth`
 
 Returns a JSON object containing the servers auth permissions as defined by the default
