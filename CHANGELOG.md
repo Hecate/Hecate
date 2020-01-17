@@ -10,6 +10,10 @@
 
 # Version History
 
+## v0.86.0
+
+- :tada: Add support for HTTP Bearer based auth, making tokens much more useful
+
 ## v0.85.0
 
 - :tada: [UI] Add ability to list & manage user's auth tokens
