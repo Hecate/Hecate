@@ -134,6 +134,7 @@ mod test {
             }
 
             { // Access the feature create (FULL scope) endpoint with token and basic auth
+              // Will fail as token auth is considered first
                 let client = reqwest::Client::new();
                 let resp = client.post(format!("http://0.0.0.0:8000/token/{}/api/data/feature", token).as_str())
                     .body(r#"{
@@ -148,7 +149,7 @@ mod test {
                     .send()
                     .unwrap();
 
-                assert_eq!(resp.status().as_u16(), 200);
+                assert_eq!(resp.status().as_u16(), 401);
             }
 
             { // Access the Tokens List
