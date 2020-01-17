@@ -428,10 +428,9 @@ impl Auth {
                     if res.is_empty() {
                         return Err(config::not_authed());
                     }
-
                     let uid: i64 = res.get(0).get(0);
-                    let access: Option<String> = res.get(0).get(1);
-                    let scope: Option<String> = res.get(0).get(2);
+                    let scope: Option<String> = res.get(0).get(1);
+                    let access: Option<String> = res.get(0).get(2);
 
                     let scope = match &scope {
                         None => Scope::Read,
