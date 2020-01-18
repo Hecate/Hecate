@@ -553,51 +553,6 @@ support when using OSM software. If you are running a private server you should 
 
 ---
 
-<h3 align='center'>Downloading Individual Features</h3>
-
-<details>
-
-#### `GET` `/api/data/feature`
-
-Return a single GeoJSON `Feature` given a query parameter
-
-*Options*
-
-| Option            | Notes                                                     |
-| :----:            | --------------------------------------------------------- |
-| `key=<key>`       | `Optional` Key value to retrieve a given feature by       |
-| `point=<lng,lat>` | `Optional` Query for a single feature at the given point  |
-
-*Example*
-
-```bash
-curl -X GET 'http://localhost:8000/api/data/feature?key=123'
-```
-
-```bash
-curl -X GET 'http://localhost:8000/api/data/feature?point=1.1324%2C-45.322'
-```
-
----
-
-#### `GET` `/api/data/feature/<id>`
-
-Return a single GeoJSON `Feature` given its' ID.
-
-*Options*
-
-| Option | Notes |
-| :----: | ----- |
-| `<id>` | `REQUIRED` Numeric ID of a given feature to download |
-
-*Example*
-
-```bash
-curl -X GET 'http://localhost:8000/api/data/feature/1542'
-```
-
----
-
 #### `GET` `/api/data/feature/<id>/history`
 
 Return an array containing the full feature history for the provided feature id.

@@ -573,8 +573,61 @@ SELECT count(*) FROM geo
 SELECT props FROM geo WHERE id = 1
 ```
 
++ Response 200
+
+### Querying Feature [/api/data/feature{?key}{?point}]
+
++ Parameters
+    + key (string, optional) - Retrieve a feature by it's `key` property
+    + point (number[], optional) - Query for a single feature at the given point
+
+#### /api/data/feature [GET]
+
+Return a single GeoJSON `Feature` given a query parameter
 
 + Response 200
+
+### Feature Lookup [/api/data/feature/{id}]
+
++ Parameters
+    + id (number, required) - Feature ID to retrieve
+
+#### /api/data/feature/{id} [GET]
+
+Return a single GeoJSON `Feature` given its' ID.
+
++ Response 200
+
+### Data Stats [/api/data/stats]
+
+#### /api/data/stats [GET]
+
+Return a JSON object containing statistics and metadata about the geometries stored in the server
+
++ Response 200 (application/json)
+    + Body
+
+                {
+                    "bbox":  [0,0,1,1],
+                    "last_calc": null,
+                    "total":0
+                }
+
+### Data Stats Regen [/api/data/stats/regen]
+
+#### /api/data/stats/regen [GET]
+
+Perform an `ANAYLZE` call on the `geo` table to update the global stats.
+
++ Response 200 (application/json)
+    + Body
+
+                {
+                    "bbox":  [0,0,1,1],
+                    "last_calc": null,
+                    "total":0
+                }
+
 
 ## Group Boundaries
 
@@ -660,40 +713,4 @@ Return statistics about geometries that intersect a given bounds
 Return GeoJSON feature representing the bound
 
 + Response 200 (application/json)
-
-## Group Deltas
-
-
-## Group Tiles
-
-
-### Data Stats [/api/data/stats]
-
-#### /api/data/stats [GET]
-
-Return a JSON object containing statistics and metadata about the geometries stored in the server
-
-+ Response 200 (application/json)
-    + Body
-
-                {
-                    "bbox":  [0,0,1,1],
-                    "last_calc": null,
-                    "total":0
-                }
-
-### Data Stats Regen [/api/data/stats/regen]
-
-#### /api/data/stats/regen [GET]
-
-Perform an `ANAYLZE` call on the `geo` table to update the global stats.
-
-+ Response 200 (application/json)
-    + Body
-
-                {
-                    "bbox":  [0,0,1,1],
-                    "last_calc": null,
-                    "total":0
-                }
 
