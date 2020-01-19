@@ -553,6 +553,38 @@ Note: All streaming GeoJSON endpoints will send the Unitcode End Of Transmission
     + query (string, required) - SQL Query to run against Geometries
     + limit (number, optional) - Limit the number of returned results
 
+### Downloading Multiple Features [/api/data/features{?bbox}{?point}]
+
++ Parameters
+    + bbox (number[], optional) - Bounding box in format `left,bottom,right,top` or `minX, minY, maxX, maxY`
+    + point (number[], optional) - Retrieve all features that intersect point in format `Lng,Lat`
+
+#### /api/data/features [GET]
+
+Return streaming Line-Delimited GeoJSON within the provided BBOX or Point
+
+Note: All streaming GeoJSON endpoints will send the Unitcode End Of Transmission, EOT
+(`0x04`) on stream completion. This can be used to ensure that a stream did not exit early.
+
++ Response 200
+
+### Downloading Multiple Features' History [/api/data/features/history{?bbox}{?point}]
+
++ Parameters
+    + bbox (number[], optional) - Bounding box in format `left,bottom,right,top` or `minX, minY, maxX, maxY`
+    + point (number[], optional) - Retrieve all features that intersect point in format `Lng,Lat`
+
+#### /api/data/features/history [GET]
+
+Return streaming Line-Delimited GeoJSON of all versions of features that fall within the provided BBOX or Point.
+This includes the current version of the feature. Features in `delete` state will not be included
+as their geometries are not recorded.
+
+Note: All streaming GeoJSON endpoints will send the Unitcode End Of Transmission, EOT
+(`0x04`) on stream completion. This can be used to ensure that a stream did not exit early.
+
++ Response 200
+
 #### /api/data/query [GET]
 
 Return a Line-Delimited GeoJSON stream of all features that match the given query.
@@ -575,11 +607,21 @@ SELECT props FROM geo WHERE id = 1
 
 + Response 200
 
-### Querying Feature [/api/data/feature{?key}{?point}]
+### Features [/api/data/feature{?key}{?point}]
 
 + Parameters
     + key (string, optional) - Retrieve a feature by it's `key` property
     + point (number[], optional) - Query for a single feature at the given point
+
+#### /api/data/feature [POST]
+
+Create, Modify, or Delete an individual GeoJSON `Feature`
+
+The Feature must follow format defined in the Feature Format section of the README.
+
+The feature also must contain a top-level String `message` attribute describing the changes being made (The delta message)
+
++ Response 200
 
 #### /api/data/feature [GET]
 
@@ -590,11 +632,22 @@ Return a single GeoJSON `Feature` given a query parameter
 ### Feature Lookup [/api/data/feature/{id}]
 
 + Parameters
-    + id (number, required) - Feature ID to retrieve
+    + id (number, required) - ID of Feature to retrieve
 
 #### /api/data/feature/{id} [GET]
 
 Return a single GeoJSON `Feature` given its' ID.
+
++ Response 200
+
+### Feature History [/api/data/feature/{id}/history]
+
++ Parameters
+    + id (number, required) - ID of Feature to retrieve
+
+#### /api/data/feature/{id}/history [GET]
+
+Return an array containing the full feature history for the provided feature id.
 
 + Response 200
 
