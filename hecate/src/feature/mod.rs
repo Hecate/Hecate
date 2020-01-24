@@ -915,3 +915,43 @@ pub fn get_bbox_history_stream(conn: r2d2::PooledConnection<r2d2_postgres::Postg
             ) f;
     "#), &[&bbox[0], &bbox[1], &bbox[2], &bbox[3]])?)
 }
+
+pub fn hard_delete(trans: &postgres::transaction::Transaction, feature_id: i64) -> Result<(), HecateError> {
+    if let Err(err) = trans.execute("
+        DELETE FROM geo
+            WHERE
+                id = $1
+    ", &[&feature_id]) {
+        return Err(HecateError::new(500, String::from("Failed to Hard Delete"), Some(err.to_string())));
+    }
+
+    let delta_ids: Vec<i64> = match trans.query("
+        DELETE FROM geo_history
+            WHERE
+                id = $1
+            RETURNING
+                delta
+    ", &[&feature_id]) {
+        Ok(rows) => rows.iter().map(|row| {
+            row.get(0)
+        }).collect(),
+        Err(err) => { return Err(HecateError::new(500, String::from("Failed to Hard Delete"), Some(err.to_string()))); }
+    };
+
+    if let Err(err) = trans.execute("
+        UPDATE deltas
+            SET
+                affected = (
+                    SELECT
+                        ARRAY_AGG(id)
+                    FROM
+                        geo_history
+                    WHERE
+                        delta = ANY(($1)::BIGINT[])
+                )
+    ", &[&delta_ids]) {
+        return Err(HecateError::new(500, String::from("Failed to Hard Delete"), Some(err.to_string())));
+    }
+
+    Ok(())
+}

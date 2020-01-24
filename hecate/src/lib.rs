@@ -241,6 +241,7 @@ pub fn start(
                         .route(web::post().to_async(feature_action))
                     )
                     .service(web::resource("feature/{id}")
+                        .route(web::delete().to_async(feature_delete))
                         .route(web::get().to_async(feature_get))
                     )
                     .service(web::resource("feature/{id}/history")
@@ -1825,6 +1826,50 @@ fn osm_user(
             </user>
         </osm>
     "))
+}
+
+///
+/// Hard delete a given feature
+///
+/// - If active, remove it from the geo table
+/// - Remove all of it's geo_history
+/// - Remove it from all affected delta arrays
+///
+fn feature_delete(
+    conn: web::Data<DbReplica>,
+    auth: auth::Auth,
+    auth_rules: web::Data<auth::AuthContainer>,
+    id: web::Path<i64>
+) -> impl Future<Item = Json<serde_json::Value>, Error = HecateError> {
+    web::block(move || {
+        auth::check(&auth_rules.0.feature.get, auth::RW::Read, &auth)?;
+
+        let conn = &*conn.get()?;
+
+        let trans = match (&conn).transaction() {
+            Ok(trans) => trans,
+            Err(err) => { return Err(HecateError::new(500, String::from("Failed to open transaction"), Some(err.to_string()))); }
+        };
+
+        match feature::hard_delete(&trans, id.into_inner()) {
+            Err(err) => {
+                trans.set_rollback();
+                trans.finish().unwrap();
+                println!("ERROR");
+                Err(err)
+            },
+            _ => {
+                if trans.commit().is_err() {
+                    return Err(HecateError::new(500, String::from("Failed to commit transaction"), None));
+                }
+
+                Ok(())
+            }
+        }
+    }).then(|res: Result<(), actix_threadpool::BlockingError<HecateError>>| match res {
+        Err(err) => Err(err.into()),
+        _ => Ok(Json(json!(true)))
+    })
 }
 
 fn feature_action(

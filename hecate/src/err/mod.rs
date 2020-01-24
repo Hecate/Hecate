@@ -120,6 +120,12 @@ impl std::fmt::Display for HecateError {
     }
 }
 
+impl std::convert::From<HecateError> for actix_threadpool::BlockingError<HecateError> {
+    fn from(payload: HecateError) -> Self {
+        actix_threadpool::BlockingError::Error(payload)
+    }
+}
+
 impl std::convert::From<actix_http::error::PayloadError> for HecateError {
     fn from(payload: actix_http::error::PayloadError) -> Self {
         HecateError::new(500, String::from("Internal Server Error"), Some(payload.to_string()))
