@@ -1,5 +1,3 @@
-FORMAT: 1A
-
 # API
 
 # Group Server
@@ -568,22 +566,47 @@ Note: All streaming GeoJSON endpoints will send the Unitcode End Of Transmission
 
 + Response 200
 
-### Downloading Multiple Features' History [/api/data/features/history{?bbox}{?point}]
+### Features [/api/data/features]
 
-+ Parameters
-    + bbox (number[], optional) - Bounding box in format `left,bottom,right,top` or `minX, minY, maxX, maxY`
-    + point (number[], optional) - Retrieve all features that intersect point in format `Lng,Lat`
+#### /api/data/features [POST]
 
-#### /api/data/features/history [GET]
+Create, Modify, and/or Delete many features via a GeoJSON `FeatureCollection`
 
-Return streaming Line-Delimited GeoJSON of all versions of features that fall within the provided BBOX or Point.
-This includes the current version of the feature. Features in `delete` state will not be included
-as their geometries are not recorded.
+The Features in the FeatureCollection must follow format defined in [Feature Format](#feature-format).
 
-Note: All streaming GeoJSON endpoints will send the Unitcode End Of Transmission, EOT
-(`0x04`) on stream completion. This can be used to ensure that a stream did not exit early.
+The FeatureCollection also must contain a top-level String `message` attribute describing the changes being made (The delta message)
 
-+ Response 200
+Note that a mix of `create`, `modify`, and `delete` operations are allowed
+within each `FeatureCollection`
+
++ Request JSON Value
+
+    + Headers
+
+            Content-Type: application/json
+
+    + Body
+
+            {
+                "type": "FeatureCollection",
+                "message": "A bunch of changes",
+                "features": [{
+                    "action": "create",
+                    "properties": {
+                        "shop": true
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [ [0,0], [0, 1], [1, 1], [1, 0], [0, 0] ]
+                    }
+                }]
+            }
+
++ Response 200 (application/json)
+
+#### /api/data/features [GET]
+
+### Downloading view Query [/api/data/query]
 
 #### /api/data/query [GET]
 
@@ -607,7 +630,25 @@ SELECT props FROM geo WHERE id = 1
 
 + Response 200
 
-### Features [/api/data/feature{?key}{?point}]
+
+### Downloading Multiple Features' History [/api/data/features/history{?bbox}{?point}]
+
++ Parameters
+    + bbox (number[], optional) - Bounding box in format `left,bottom,right,top` or `minX, minY, maxX, maxY`
+    + point (number[], optional) - Retrieve all features that intersect point in format `Lng,Lat`
+
+#### /api/data/features/history [GET]
+
+Return streaming Line-Delimited GeoJSON of all versions of features that fall within the provided BBOX or Point.
+This includes the current version of the feature. Features in `delete` state will not be included
+as their geometries are not recorded.
+
+Note: All streaming GeoJSON endpoints will send the Unitcode End Of Transmission, EOT
+(`0x04`) on stream completion. This can be used to ensure that a stream did not exit early.
+
++ Response 200
+
+### Feature [/api/data/feature{?key}{?point}]
 
 + Parameters
     + key (string, optional) - Retrieve a feature by it's `key` property
@@ -767,3 +808,59 @@ Return GeoJSON feature representing the bound
 
 + Response 200 (application/json)
 
+### Deltas [/api/deltas{?offset}{?limit}{?start}{?end}]
+
+Get a list of the latest deltas
+
+*Limit Options*
+
+Return the last `n` deltas starting at the specified `offset`.
+
+Where `n` defaults to 20 and can be up to 100 by utilizing the `limit` parameter
+
+*Date Options*
+
+Return deltas between a given `start` and `end` parameter.
+
+The `start` parameter should be the most recent TIMESTAMP, while the `end` parameter
+should be the furthest back in time.
+
+IE: `start` > `end`.
+
+```
+   |---------|------|
+Current    start   end
+ Time
+```
+
+- If both `start` and `end` are specified, return all deltas by default
+- If `start` or `end` is specified, return last 20 deltas or the number specified by `limit`
+
++ Parameters
+    + offset (number, optional) - Returns deltas before the given offset
+    + limit (number, optional) - Increase or decrease the max number of returned deltas (Max 100)
+    + start (date, optional) - Timestamp with which to filter between
+    + end (date, optional) - Timestamp with which to filter deltas between
+
+#### /api/deltas [GET]
+
+Returns an array of the last `limit` defined number of deltas (default: 20). with their corresponding metadata. Does not include geometric
+data on the delta. Request a specific delta to get geometric data.
+
+The deltas endpoint has 2 modes. The first is a fixed list of the last `n` deltas. The second is listing deltas by time stamp. the query parameters
+for these two modes are mutually exclusive.
+
++ Response 200 (application/json)
+
+### Individual Delta [/api/deltas/{id}]
+
++ Parameters
+    + id (number, required) - ID of delta to retrieve
+
+#### /api/deltas/{id} [GET]
+
+Returns all data for a given delta as a JSON Object, including geometric data.
+
++ Response 200 (application/json)
+
+###
