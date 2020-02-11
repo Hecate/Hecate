@@ -554,7 +554,7 @@ support when using OSM software. If you are running a private server you should 
 ---
 <h2 align='center'>API</h2>
 
-
+Our API docs have been moved to 
 
 <h3 align='center'>OpenStreetMap API</h3>
 
