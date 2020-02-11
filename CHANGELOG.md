@@ -10,6 +10,11 @@
 
 # Version History
 
+## v0.86.1
+
+- :rocket: meta data endpoint now returns proper 404 if the key is not found
+- :pencil2: Rewrite vast majority of docs in API Blueprint
+
 ## v0.86.0
 
 - :tada: Add support for HTTP Bearer based auth, making tokens much more useful
