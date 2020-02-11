@@ -93,4 +93,4 @@ echo "ok - release pushed!"
 echo
 echo "${CHANGE}"
 echo
-echo "ok - your release will be available here once CI is complete - https://github.com/mapbox/Hecate/releases"
+echo "ok - your release will be available here once CI is complete - https://github.com/hecate/Hecate/releases"
