@@ -402,7 +402,7 @@ fn meta_delete(
 
         worker.queue(worker::Task::new(worker::TaskType::Meta));
 
-        Ok(json!(meta::delete(&*conn.get()?, &key.into_inner())?))
+        Ok(json!(meta::Meta::delete(&*conn.get()?, &key.into_inner())?))
     }).then(|res: Result<serde_json::Value, actix_threadpool::BlockingError<HecateError>>| match res {
         Ok(meta) => Ok(actix_web::HttpResponse::Ok().json(meta)),
         Err(err) => Ok(HecateError::from(err).error_response())
