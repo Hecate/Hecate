@@ -10,6 +10,39 @@
 
 # Version History
 
+## v0.86.1
+
+- :rocket: meta data endpoint now returns proper 404 if the key is not found
+- :pencil2: Rewrite vast majority of docs in API Blueprint
+
+## v0.86.0
+
+- :tada: Add support for HTTP Bearer based auth, making tokens much more useful
+
+## v0.85.0
+
+- :tada: [UI] Add ability to list & manage user's auth tokens
+- :tada: Add token listing endpoint
+- :rocket: Give each token a unique ID that it can be deleted with
+- :rocket: Add ability to create non-expiring API tokens
+
+## v0.84.0
+
+- :tada: Add properties to VT output
+
+## v0.83.0
+
+- :rocket: Refactor project into cargo workspace
+- :rocket: Rewrite auth module to use Derivable traits for far better code security & readability
+
+## v0.82.2
+
+- :rocket: Huge number of rust clippy improvements
+
+## v0.82.1
+
+- :bug: `user_modify_info` function requires write DB access
+
 ## v0.82.0
 
 - :tada: [UI] Add ability for admin to make changes to user accounts
