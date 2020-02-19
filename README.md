@@ -551,7 +551,6 @@ support when using OSM software. If you are running a private server you should 
 
 </details>
 
----
 <h2 align='center'>API</h2>
 
 Our API docs have been moved to [hecate.github.io/hecate](https://hecate.github.io/Hecate/)
