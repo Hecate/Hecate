@@ -100,7 +100,7 @@ pub fn get(conn: r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager
                 WHERE
                     ST_Intersects(geo.geom, b.subgeom)
             ) t
-    "#), &[&bounds]) {
+    "#), &[&bounds], None, Some(vec![0x04])) {
         Ok(stream) => Ok(stream),
         Err(err) => Err(err)
     }

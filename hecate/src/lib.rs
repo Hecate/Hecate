@@ -1,4 +1,4 @@
-pub static VERSION: &str = "0.86.1";
+pub static HECATEVERSION: &'static str = "0.86.1";
 pub static POSTGRES: f64 = 10.0;
 pub static POSTGIS: f64 = 2.4;
 pub static HOURS: i64 = 24;
@@ -12,8 +12,9 @@ pub static MAX_BODY: u64 = 20_971_520;
 #[macro_use] extern crate serde_json;
 #[macro_use] extern crate serde_derive;
 
-pub mod err;
+pub mod wfs;
 pub mod validate;
+pub mod err;
 pub mod meta;
 pub mod stats;
 pub mod db;
@@ -47,11 +48,17 @@ use std::{
 pub fn start(
     database: Database,
     port: Option<u16>,
+    domain: Option<String>,
     workers: Option<u16>,
     schema: Option<serde_json::value::Value>,
     auth: Option<auth::CustomAuth>,
     ui: Option<String>
 ) {
+    std::env::set_var("RUST_LOG", "actix_web=info");
+    env_logger::init();
+
+    let domain: String = domain.unwrap_or(format!("http://localhost:{}", port.unwrap_or(8000)));
+
     let auth_rules: auth::CustomAuth = match auth {
         None => auth::CustomAuth::default(),
         Some(auth) => {
@@ -72,14 +79,19 @@ pub fn start(
 
     let worker = worker::Worker::new(database.main);
 
-    std::env::set_var("RUST_LOG", "actix_web=info");
-    env_logger::init();
-
-    let default = match &*auth_rules.0.default {
-        "public"  => auth::ServerAuthDefault::Public,
-        "user" => auth::ServerAuthDefault::User,
-        "admin" => auth::ServerAuthDefault::Admin,
-        _ => panic!("Invalid 'default' value in custom auth")
+    let default = match auth_rules.0.default {
+        None => auth::AuthDefault::Public,
+        Some(ref default) => {
+            if default == &String::from("public") {
+                auth::AuthDefault::Public
+            } else if default == &String::from("user") {
+                auth::AuthDefault::User
+            } else if default == &String::from("admin") {
+                auth::AuthDefault::Admin
+            } else {
+                panic!("Invalid 'domain' value in custom auth");
+            }
+        }
     };
 
     HttpServer::new(move || {
@@ -88,6 +100,7 @@ pub fn start(
             .wrap(middleware::Logger::default())
             .wrap(auth::middleware::EnforceAuth::new(db_replica.clone(), default.clone()))
             .wrap(middleware::Compress::default())
+            .data(domain.clone())
             .data(auth_rules.clone())
             .data(worker.clone())
             .data(db_replica.clone())
@@ -345,7 +358,7 @@ fn server(
     auth::check(&auth_rules.0.server, auth::RW::Read, &auth)?;
 
     Ok(Json(json!({
-        "version": VERSION,
+        "version": HECATEVERSION,
         "constraints": {
             "request": {
                 "max_size": MAX_BODY
@@ -1996,5 +2009,56 @@ fn feature_query(
         Ok(Json(results.pop().unwrap()))
     } else {
         Err(HecateError::new(400, String::from("key or point param must be used"), None))
+    }
+}
+
+fn wfsall(
+    conn: web::Data<DbReadWrite>,
+    domain: web::Data<String>,
+    mut auth: auth::Auth,
+    auth_rules: State<auth::CustomAuth>,
+    req: HttpRequest
+) -> Result<impl Responder<'static>, HecateError> {
+    // TODO Error on non 2.0.0 version
+
+    let query = wfs::Query::new(&wfsreq);
+
+    let conn = conn.get()?;
+
+    //TODO THIS NEEDS TO BE WFS SPECFIC
+    auth_rules.allows_feature_history(&mut auth, &*conn).unwrap();
+
+    match query.request {
+        wfs::RequestType::GetCapabilities => {
+            let body = wfs::capabilities(&conn, &domain)?;
+            let body_cursor = Cursor::new(body);
+            let mut response = Response::new();
+            response.set_status(HTTPStatus::Ok);
+            response.set_sized_body(body_cursor);
+            response.set_raw_header("Content-Type", "application/xml");
+            return Ok(response);
+        },
+        wfs::RequestType::DescribeFeatureType => {
+            let body = wfs::describe_feature_type(&conn)?;
+            let body_cursor = Cursor::new(body);
+            let mut response = Response::new();
+            response.set_status(HTTPStatus::Ok);
+            response.set_sized_body(body_cursor);
+            response.set_raw_header("Content-Type", "application/xml");
+            return Ok(response);
+        },
+        wfs::RequestType::GetFeature => {
+            let body = wfs::get_feature(conn, &query).unwrap();
+            let mut response = Response::new();
+            response.set_status(HTTPStatus::Ok);
+            response.set_streamed_body(body);
+            response.set_raw_header("Content-Type", "application/xml");
+            return Ok(response);
+        },
+        wfs::RequestType::Invalid => {
+            let mut error = HecateError::new(400, String::from("Not a valid request param"), None);
+            error.to_wfsxml();
+            return Err(error);
+        }
     }
 }

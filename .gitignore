@@ -10,7 +10,9 @@ ets-wfs20/
 /target/
 **/*.rs.bk
 node_modules/
+ets-wfs20-master/
+test-run-props.xml
+web/dist/
 hecate_ui/dist/
-
 .env
 .cache

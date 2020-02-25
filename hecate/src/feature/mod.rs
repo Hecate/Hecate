@@ -755,13 +755,13 @@ pub fn get_point_stream(conn: r2d2::PooledConnection<r2d2_postgres::PostgresConn
                 ORDER BY
                     ST_Distance(ST_SetSRID(ST_MakePoint($1, $2), 4326), geo.geom) DESC
             ) f;
-    "#), &[&lng, &lat])?)
+    "#), &[&lng, &lat], None, None)?)
 }
 
 pub fn get_bbox_stream(conn: r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager>, bbox: &[f64]) -> Result<PGStream, HecateError> {
     validate::bbox(bbox)?;
 
-    Ok(PGStream::new(conn, String::from("next_features"), String::from(r#"
+    match PGStream::new(conn, String::from("next_features"), String::from(r#"
         DECLARE next_features CURSOR FOR
             SELECT
                 row_to_json(f)::TEXT AS feature
@@ -778,7 +778,10 @@ pub fn get_bbox_stream(conn: r2d2::PooledConnection<r2d2_postgres::PostgresConne
                     ST_Intersects(geom, ST_MakeEnvelope($1, $2, $3, $4, 4326))
                     OR ST_Within(geom, ST_MakeEnvelope($1, $2, $3, $4, 4326))
             ) f;
-    "#), &[&bbox[0], &bbox[1], &bbox[2], &bbox[3]])?)
+    "#), &[&bbox[0], &bbox[1], &bbox[2], &bbox[3]], None, Some(vec![0x04])) {
+        Ok(stream) => Ok(stream),
+        Err(_) => Err(HecateError::new(400, String::from("Not Found"), None))
+    }
 }
 
 pub fn get_bbox(conn: &impl postgres::GenericConnection, bbox: Vec<f64>) -> Result<geojson::FeatureCollection, HecateError> {

@@ -1,10 +1,17 @@
 #[derive(PartialEq, Debug)]
+pub enum HecateErrorResponse {
+    JSON,
+    WFSXML
+}
+
+#[derive(PartialEq, Debug)]
 pub struct HecateError {
     pub code: u16,
     pub invalidate: bool,
     pub custom_json: Option<serde_json::Value>,
     pub safe_error: String,
-    pub full_error: String
+    pub full_error: String,
+    pub response: HecateErrorResponse
 }
 
 impl HecateError {
@@ -18,8 +25,9 @@ impl HecateError {
             code,
             invalidate: false,
             custom_json: None,
-            safe_error,
-            full_error
+            safe_error: safe_error,
+            full_error: full_error,
+            response: HecateErrorResponse::JSON
         }
     }
 
@@ -41,9 +49,10 @@ impl HecateError {
         HecateError {
             code,
             invalidate: false,
-            custom_json: None,
-            safe_error: reason.clone(),
-            full_error: reason
+            custom_json: Some(json),
+            safe_error: safe_error,
+            full_error: full_error,
+            response: HecateErrorResponse::JSON
         }
 
     }
@@ -57,16 +66,30 @@ impl HecateError {
                 custom_json: None,
                 invalidate: false,
                 safe_error: String::from("Database Error"),
-                full_error: format!("{}", db_err)
+                full_error: format!("{}", db_err),
+                response: HecateErrorResponse::JSON
             },
             None => HecateError {
                 code: 500,
                 custom_json: None,
                 invalidate: false,
                 safe_error: String::from("Database Error"),
-                full_error: format!("{}", error)
+                full_error: format!("{}", error),
+                response: HecateErrorResponse::JSON
             }
         }
+    }
+
+    pub fn to_json(&mut self) {
+        self.response = HecateErrorResponse::JSON
+    }
+
+    pub fn to_wfsxml(&mut self) {
+        self.response = HecateErrorResponse::WFSXML
+    }
+
+    pub fn as_string(&self) -> String {
+        self.safe_error.clone()
     }
 
     pub fn as_json(&self) -> serde_json::Value {
@@ -82,6 +105,16 @@ impl HecateError {
                 })
             }
         }
+    }
+
+    pub fn as_wfs(self) -> String {
+        format!(r#"
+            <ExceptionReport version="2.0.0" xmlns="http://www.opengis.net/ogc" xsi="http://www.w3.org/2001/XMLSchema-instance" schemaLocation="owsExceptionReport.xsd">
+                <Exception exceptionCode="{}">
+                    <ExceptionText>{}</ExceptionText>
+                </Exception>
+            </ExceptionReport>
+        "#, &self.code, &self.safe_error)
     }
 
     pub fn as_log(&self) -> String {

@@ -14,7 +14,39 @@ pub struct PGStream {
     pending: Option<Vec<u8>>,
     trans: postgres::transaction::Transaction<'static>,
     #[allow(dead_code)]
-    conn: Box<r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager>>
+    conn: Box<r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager>>,
+    post: Option<Vec<u8>>
+}
+
+impl PGStream {
+    pub fn new(
+        conn: r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager>,
+        cursor: String,
+        query: String,
+        params: &[&dyn ToSql],
+        prestream: Option<Vec<u8>>,
+        poststream: Option<Vec<u8>>
+    ) -> Result<Self, HecateError> {
+        let pg_conn = Box::new(conn);
+
+        let trans: postgres::transaction::Transaction = unsafe {
+            mem::transmute(pg_conn.transaction().unwrap())
+        };
+
+        match trans.execute(&*query, params) {
+            Ok(_) => {
+                Ok(PGStream {
+                    eot: false,
+                    cursor: cursor,
+                    pending: prestream,
+                    trans: trans,
+                    conn: pg_conn,
+                    post: poststream
+                })
+            },
+            Err(err) => Err(HecateError::from_db(err))
+        }
+    }
 }
 
 impl futures::stream::Stream for PGStream {
@@ -80,7 +112,10 @@ impl std::io::Read for PGStream {
                 }
             }
 
-            if write.is_empty() && !self.eot {
+            if write.is_empty() && !self.eot && self.post.is_some() {
+                self.pending = self.post.clone();
+                self.post = None;
+            } else if write.is_empty() && !self.eot {
                 write.push(0x04); //Write EOT Character To Stream
                 self.eot = true;
             }
@@ -117,27 +152,3 @@ impl std::io::Read for PGStream {
         Ok(current)
     }
 }
-
-impl PGStream {
-    pub fn new(pg_conn: r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager>, cursor: String, query: String, params: &[&dyn ToSql]) -> Result<Self, HecateError> {
-        let conn = Box::new(pg_conn);
-
-        let trans: postgres::transaction::Transaction = unsafe {
-            mem::transmute(conn.transaction().unwrap())
-        };
-
-        match trans.execute(&*query, params) {
-            Ok(_) => {
-                Ok(PGStream {
-                    eot: false,
-                    cursor,
-                    pending: None,
-                    trans,
-                    conn
-                })
-            },
-            Err(err) => Err(HecateError::from_db(err))
-        }
-    }
-}
-
