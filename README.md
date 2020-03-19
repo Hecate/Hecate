@@ -80,23 +80,30 @@ source ~/.bash_profile  # Most OSX, some Linux Distros
 cargo build
 ```
 
-- Ensure you have database dependencies `postgres` and `postgis` installed.
+- Ensure you have database dependencies
+  [PostgreSQL](https://www.postgresql.org/) and [PostGIS](https://postgis.net/)
+  installed. PostgreSQL 11 or newer and PostGIS 2.5 or newer are required,
+  because of support for libprotobuf and MapBox Vector Tiles. On OSX
+  [Postgres.app](https://postgresapp.com/) is a good option.
 
-- Create the `hecate` database using the provided schema file. These instructions assume you have set up a role `postgres` with sufficient privileges.
+
+- Create the `hecate` database using the provided schema file. These
+  instructions assume you have set up a role `postgres` with sufficient
+  privileges. 
 
 ```bash
 echo "CREATE DATABASE hecate;" | psql -U postgres
 
-psql -U postgres -f src/schema.sql hecate
+psql -U postgres -f hecate/src/schema.sql hecate
 ```
 
-- This step will also create a database role called `hecate` and `hecate_read`. If
-the connection fails due to authentication, your pg_hba file may not be set up
-to trust local connections.
+- This step will also create a database role called `hecate` and `hecate_read`. 
 
-Your pb_hba file location can be found using `echo "show hba_file;" | psql -U postgres`
 
-Replace the file with the following:
+- If the database connection fails due to authentication, here are some tips:
+  Your `pg_hba.conf` file may not be set up to trust local connections. Your
+  pb_hba file location can be found using `echo "show hba_file;" | psql -U
+  postgres`. Replace the file with the following:
 
 ```
 local all postgres trust
@@ -114,21 +121,20 @@ host replication postgres samenet trust
 - Install frontend dependencies
 
 ```
-cd web/
-yarn install
+yarn --cwd hecate_ui install
 ```
 
 - Build frontend UI
 
 ```
-yarn build
+yarn --cwd hecate_ui build
 ```
 
 Note: if actively working on developing the UI, a live reloading server
 can be started via:
 
 ```
-yarn dev
+yarn --cwd hecate_ui dev
 ```
 
 - Start the server
@@ -137,7 +143,8 @@ yarn dev
 cargo run
 ```
 
-- Test it is working - should respond with `HTTP200`
+- Test it is working. The HTTP healthcheck URL `/` should respond with "Hello
+  World!".
 
 ```bash
 curl localhost:8000
