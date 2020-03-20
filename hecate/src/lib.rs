@@ -1,5 +1,5 @@
 /// Hecate version
-pub static VERSION: &str = "0.86.0"; // must parse as semver::Version
+pub static VERSION: &str = "0.86.1"; // must parse as semver::Version
 /// Supported version of PostgreSQL
 pub static POSTGRES_VERSION: &str = ">= 11.0.0"; // must parse as semver::VersionReq
 /// Supported version of PostGIS

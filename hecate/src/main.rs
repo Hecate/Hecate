@@ -160,9 +160,6 @@ fn database_check(conn_str: &String, is_read: bool) {
                                 got_postgres_v
                             );
                         }
-
-                        println!("want {}, got {}", want_postgres_v.to_string(), got_postgres_v.to_string());
-
                         let postgis_v: String = res.get(0).get(1);
                         let want_postgis_v = VersionReq::parse(hecate::POSTGIS_VERSION).unwrap();
                         let got_postgis_v = match Version::parse(&postgis_v){
@@ -172,8 +169,6 @@ fn database_check(conn_str: &String, is_read: bool) {
                                 Version::parse(&fix_semver).unwrap()
                             }
                         };
-                        println!("want {}, got {}", want_postgis_v.to_string(), got_postgis_v.to_string());
-
                         if ! want_postgis_v.matches(&got_postgis_v) {
                             panic!(
                                 "ERROR: Hecate requires a min PostGIS version of {}, got {}.", 
