@@ -11,6 +11,8 @@ use hecate::auth::CustomAuth;
 use hecate::auth::AuthModule;
 use std::error::Error;
 use clap::App;
+use semver::Version;
+use semver::VersionReq;
 
 fn main() {
     let cli_cnf = load_yaml!("cli.yml");
@@ -134,29 +136,54 @@ fn database_check(conn_str: &String, is_read: bool) {
             if !is_read {
                 match conn.query("
                     SELECT
-                        (regexp_matches(version(), 'PostgreSQL (.*?) '))[1]::FLOAT AS postgres_v,
-                        (regexp_matches(postgis_version(), '^(.*?) '))[1]::FLOAT AS postgis_v
+                        (regexp_matches(version(), 'PostgreSQL (.*?) '))[1] AS postgres_v,
+                        (regexp_matches(postgis_version(), '^(.*?) '))[1] AS postgis_v
                 ", &[]) {
                     Ok(res) => {
                         if res.len() != 1 {
-                            println!("ERROR: Connection unable obtain postgres version using ({}) {}", conn_type, conn_str);
+                            println!("ERROR: Connection unable obtain PostgreSQL version using ({}) {}", conn_type, conn_str);
                             std::process::exit(1);
                         }
-
-                        let postgres_v: f64 = res.get(0).get(0);
-                        if postgres_v < hecate::POSTGRES {
-                            println!("ERROR: Hecate requires a min postgres version of {}", hecate::POSTGRES);
-                            std::process::exit(1);
+                        let postgres_v: String = res.get(0).get(0);
+                        let want_postgres_v = VersionReq::parse(hecate::POSTGRES_VERSION).unwrap();
+                        let got_postgres_v = match Version::parse(&postgres_v){
+                            Ok(version) => version,
+                            Err(_) => {
+                                let fix_semver = format!("{}.0", postgres_v);
+                                Version::parse(&fix_semver).unwrap()
+                            }
+                        };
+                        if ! want_postgres_v.matches(&got_postgres_v) {
+                            panic!(
+                                "ERROR: Hecate requires a min PostgreSQL version of {}, got {}.", 
+                                want_postgres_v.to_string(),
+                                got_postgres_v
+                            );
                         }
 
-                        let postgis_v: f64 = res.get(0).get(1);
-                        if postgis_v < hecate::POSTGIS {
-                            println!("ERROR: Hecate requires a min postgis version of {}", hecate::POSTGIS);
-                            std::process::exit(1);
+                        println!("want {}, got {}", want_postgres_v.to_string(), got_postgres_v.to_string());
+
+                        let postgis_v: String = res.get(0).get(1);
+                        let want_postgis_v = VersionReq::parse(hecate::POSTGIS_VERSION).unwrap();
+                        let got_postgis_v = match Version::parse(&postgis_v){
+                            Ok(version) => version,
+                            Err(_) => {
+                                let fix_semver = format!("{}.0", postgis_v);
+                                Version::parse(&fix_semver).unwrap()
+                            }
+                        };
+                        println!("want {}, got {}", want_postgis_v.to_string(), got_postgis_v.to_string());
+
+                        if ! want_postgis_v.matches(&got_postgis_v) {
+                            panic!(
+                                "ERROR: Hecate requires a min PostGIS version of {}, got {}.", 
+                                want_postgis_v.to_string(),
+                                got_postgis_v
+                            );
                         }
                     },
                     Err(err) => {
-                        println!("ERROR: Connection unable obtain postgres version using ({}) {}", conn_type, conn_str);
+                        println!("ERROR: Connection unable obtain PostgreSQL version using ({}) {}", conn_type, conn_str);
                         println!("ERROR: {}", err.description());
                         println!("ERROR: Caused by: {}", err.source().unwrap());
                         std::process::exit(1);

@@ -1,6 +1,10 @@
-pub static VERSION: &str = "0.86.1";
-pub static POSTGRES: f64 = 10.0;
-pub static POSTGIS: f64 = 2.4;
+/// Hecate version
+pub static VERSION: &str = "0.86.0"; // must parse as semver::Version
+/// Supported version of PostgreSQL
+pub static POSTGRES_VERSION: &str = ">= 11.0.0"; // must parse as semver::VersionReq
+/// Supported version of PostGIS
+pub static POSTGIS_VERSION: &str = ">= 2.5.0"; // must parse as semver::VersionReq
+
 pub static HOURS: i64 = 24;
 
 ///
