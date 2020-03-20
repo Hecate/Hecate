@@ -120,35 +120,37 @@ host replication postgres samenet trust
 
 - Install frontend dependencies
 
-```
-yarn --cwd hecate_ui install
-```
+    ```bash
+    yarn --cwd hecate_ui install
+    ```
 
 - Build frontend UI
 
-```
-yarn --cwd hecate_ui build
-```
+    ```bash
+    yarn --cwd hecate_ui build
+    ```
 
-Note: if actively working on developing the UI, a live reloading server
-can be started via:
+    Note: if actively working on developing the UI, a live reloading server
+    can be started via:
 
-```
-yarn --cwd hecate_ui dev
-```
+    ```bash
+    yarn --cwd hecate_ui dev
+    ```
 
 - Start the server
 
-```bash
-cargo run
-```
+    ```bash
+    cargo run
+    ```
 
 - Test it is working. The HTTP healthcheck URL `/` should respond with "Hello
   World!".
 
-```bash
-curl localhost:8000
-```
+    ```bash
+    curl localhost:8000
+    ```
+
+- The admin UI is available at http://localhost:8000/admin/
 
 You will now have an empty database which can be populated with your own data/user accounts.
 
