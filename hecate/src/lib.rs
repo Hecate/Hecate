@@ -9,6 +9,7 @@ pub static HOURS: i64 = 24;
 ///
 pub static MAX_BODY: u64 = 20_971_520;
 
+#[macro_use] extern crate approx;
 #[macro_use] extern crate serde_json;
 #[macro_use] extern crate serde_derive;
 
