@@ -1,9 +1,18 @@
-/// Hecate version
-pub static VERSION: &str = "0.86.1"; // must parse as semver::Version
-/// Supported version of PostgreSQL
-pub static POSTGRES_VERSION: &str = ">= 11.0.0"; // must parse as semver::VersionReq
-/// Supported version of PostGIS
-pub static POSTGIS_VERSION: &str = ">= 2.5.0"; // must parse as semver::VersionReq
+#[macro_use]
+extern crate lazy_static;
+
+use semver::VersionReq;
+
+lazy_static! {
+    pub static ref POSTGRES_VERSION: VersionReq = match VersionReq::parse(">= 11.0.0") {
+        Ok(v) => v,
+        Err(_) => panic!("Failed to parse POSTGRES_VERSION as semver::VersionReq")
+    };
+    pub static ref POSTGIS_VERSION: VersionReq = match VersionReq::parse(">= 2.5.0") {
+        Ok(v) => v,
+        Err(_) => panic!("Failed to parse POSTGIS_VERSION as semver::VersionReq")
+    };
+}
 
 pub static HOURS: i64 = 24;
 
@@ -349,7 +358,7 @@ fn server(
     auth::check(&auth_rules.0.server, auth::RW::Read, &auth)?;
 
     Ok(Json(json!({
-        "version": VERSION,
+        "version": env!("CARGO_PKG_VERSION"),
         "constraints": {
             "request": {
                 "max_size": MAX_BODY

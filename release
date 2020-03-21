@@ -56,15 +56,6 @@ if [[ ! $(git diff hecate/Cargo.toml | grep '^+' | wc -l | awk '{print $1}') -eq
     exit 1
 fi
 
-sed -i.bak "s/\"$CVER\"/\"$NVER\"/" ./hecate/src/lib.rs
-rm -f ./hecate/src/lib.rs.bak
-echo "ok - Updated hecate/src/lib.rs"
-
-if [[ ! $(git diff ./hecate/src/lib.rs | grep '^+' | wc -l | awk '{print $1}') -eq 2 ]]; then
-    echo "not ok - Failed to update hecate/src/lib.rs"
-    exit 1
-fi
-
 sed -i.bak "s/$CVER/$NVER/" ./hecate/src/cli.yml
 rm -f ./hecate/src/cli.yml.bak
 echo "ok - Updated hecate/src/cli.yml"

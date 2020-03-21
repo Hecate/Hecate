@@ -12,7 +12,6 @@ use hecate::auth::AuthModule;
 use std::error::Error;
 use clap::App;
 use semver::Version;
-use semver::VersionReq;
 
 fn main() {
     let cli_cnf = load_yaml!("cli.yml");
@@ -145,34 +144,36 @@ fn database_check(conn_str: &String, is_read: bool) {
                             std::process::exit(1);
                         }
                         let postgres_v: String = res.get(0).get(0);
-                        let want_postgres_v = VersionReq::parse(hecate::POSTGRES_VERSION).unwrap();
                         let got_postgres_v = match Version::parse(&postgres_v){
                             Ok(version) => version,
                             Err(_) => {
                                 let fix_semver = format!("{}.0", postgres_v);
-                                Version::parse(&fix_semver).unwrap()
+                                Version::parse(&fix_semver).expect(
+                                    format!("Failed to parse semver for PostgreSQL {}.", fix_semver).as_str()
+                                )
                             }
                         };
-                        if ! want_postgres_v.matches(&got_postgres_v) {
+                        if ! hecate::POSTGRES_VERSION.matches(&got_postgres_v) {
                             panic!(
-                                "ERROR: Hecate requires a min PostgreSQL version of {}, got {}.", 
-                                want_postgres_v.to_string(),
+                                "ERROR: Hecate requires PostgreSQL version {}, got {}.", 
+                                hecate::POSTGRES_VERSION.to_string(),
                                 got_postgres_v
                             );
                         }
                         let postgis_v: String = res.get(0).get(1);
-                        let want_postgis_v = VersionReq::parse(hecate::POSTGIS_VERSION).unwrap();
                         let got_postgis_v = match Version::parse(&postgis_v){
                             Ok(version) => version,
                             Err(_) => {
                                 let fix_semver = format!("{}.0", postgis_v);
-                                Version::parse(&fix_semver).unwrap()
+                                Version::parse(&fix_semver).expect(
+                                    format!("Failed to parse semver for PostGIS {}", fix_semver).as_str()
+                                )
                             }
                         };
-                        if ! want_postgis_v.matches(&got_postgis_v) {
+                        if ! hecate::POSTGIS_VERSION.matches(&got_postgis_v) {
                             panic!(
-                                "ERROR: Hecate requires a min PostGIS version of {}, got {}.", 
-                                want_postgis_v.to_string(),
+                                "ERROR: Hecate requires PostGIS version {}, got {}.",
+                                hecate::POSTGIS_VERSION.to_string(),
                                 got_postgis_v
                             );
                         }

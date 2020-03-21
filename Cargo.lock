@@ -947,6 +947,7 @@ dependencies = [
  "geojson 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "hecate_derive 0.1.0",
  "hmac 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "postgis 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "postgres 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "protobuf 1.7.5 (registry+https://github.com/rust-lang/crates.io-index)",
