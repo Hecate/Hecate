@@ -4,14 +4,10 @@ extern crate lazy_static;
 use semver::VersionReq;
 
 lazy_static! {
-    pub static ref POSTGRES_VERSION: VersionReq = match VersionReq::parse(">= 11.0.0") {
-        Ok(v) => v,
-        Err(_) => panic!("Failed to parse POSTGRES_VERSION as semver::VersionReq")
-    };
-    pub static ref POSTGIS_VERSION: VersionReq = match VersionReq::parse(">= 2.5.0") {
-        Ok(v) => v,
-        Err(_) => panic!("Failed to parse POSTGIS_VERSION as semver::VersionReq")
-    };
+    pub static ref POSTGRES_VERSION: VersionReq = VersionReq::parse(">= 11.0.0")
+        .expect("Failed to parse POSTGRES_VERSION as semver::VersionReq");
+    pub static ref POSTGIS_VERSION: VersionReq = VersionReq::parse(">= 2.5.0")
+        .expect("Failed to parse POSTGIS_VERSION as semver::VersionReq");
 }
 
 pub static HOURS: i64 = 24;
