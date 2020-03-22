@@ -1,0 +1,67 @@
+{
+  "title": "/api/tiles/{z}/{x}/{y}/regen",
+  "description": "Allows an authenticated user to request a new tile for the given tile coordinates,\nensuring the tile isn't returned from the tile cache.",
+  "permalink": "t~vector~tiles~tile~regen~get~api~tiles~z~x~y~regen",
+  "uuid": "73c6900e-9932-40e8-87c1-8ecf59be9cf7",
+  "method": "GET",
+  "path": "/api/tiles/{z}/{x}/{y}/regen",
+  "pathTemplate": "/api/tiles/{z}/{x}/{y}/regen",
+  "parameters": [
+    {
+      "location": "path",
+      "name": "z",
+      "description": "the z coordinate of the tile",
+      "required": true,
+      "example": "1",
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "location": "path",
+      "name": "x",
+      "description": "the x coordinate of the tile",
+      "required": true,
+      "example": "1",
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "location": "path",
+      "name": "y",
+      "description": "the y coordinate of the tile",
+      "required": true,
+      "example": "1",
+      "schema": {
+        "type": "integer"
+      }
+    }
+  ],
+  "meta": {
+    "resource": {
+      "title": "Tile Regen",
+      "permalink": "r~vector~tiles~tile~regen"
+    },
+    "group": {
+      "title": "Vector Tiles",
+      "permalink": "g~vector~tiles"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "headers": []
+      }
+    }
+  ]
+}

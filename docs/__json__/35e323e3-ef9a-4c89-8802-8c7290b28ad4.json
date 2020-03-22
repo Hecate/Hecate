@@ -1,0 +1,47 @@
+{
+  "title": "/api/data/stats/regen",
+  "description": "Perform an `ANAYLZE` call on the `geo` table to update the global stats.",
+  "permalink": "t~data~data~stats~regen~get~api~data~stats~regen",
+  "uuid": "35e323e3-ef9a-4c89-8802-8c7290b28ad4",
+  "method": "GET",
+  "path": "/api/data/stats/regen",
+  "pathTemplate": "/api/data/stats/regen",
+  "parameters": [],
+  "meta": {
+    "resource": {
+      "title": "Data Stats Regen",
+      "permalink": "r~data~data~stats~regen"
+    },
+    "group": {
+      "title": "Data",
+      "permalink": "g~data"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "body": "    {\n        \"bbox\":  [0,0,1,1],\n        \"last_calc\": null,\n        \"total\":0\n    }\n"
+      }
+    }
+  ]
+}

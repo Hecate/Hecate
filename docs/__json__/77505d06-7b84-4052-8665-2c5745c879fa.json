@@ -1,0 +1,56 @@
+{
+  "title": "/api/data/bounds/{bounds}/meta",
+  "description": "Return GeoJSON feature representing the bound",
+  "permalink": "t~boundaries~bound~meta~get~api~data~bounds~bounds~meta",
+  "uuid": "77505d06-7b84-4052-8665-2c5745c879fa",
+  "method": "GET",
+  "path": "/api/data/bounds/{bounds}/meta",
+  "pathTemplate": "/api/data/bounds/{bounds}/meta",
+  "parameters": [
+    {
+      "location": "path",
+      "name": "bounds",
+      "description": "One of the boundary files as specified via the `/api/data/bounds`",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "meta": {
+    "resource": {
+      "title": "Bound Meta",
+      "permalink": "r~boundaries~bound~meta"
+    },
+    "group": {
+      "title": "Boundaries",
+      "permalink": "g~boundaries"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "title": "/api/style/{style_id}",
+  "description": "Update a style - auth required - users can only update their own styles",
+  "permalink": "t~styles~individual~styles~patch~api~style~style~id",
+  "uuid": "e2119e21-4145-45c7-9fa5-5fa3ab888782",
+  "method": "PATCH",
+  "path": "/api/style/{style_id}",
+  "pathTemplate": "/api/style/{style_id}",
+  "parameters": [
+    {
+      "location": "path",
+      "name": "style_id",
+      "description": "The style ID to lookup",
+      "required": true,
+      "example": "1",
+      "schema": {
+        "type": "integer"
+      }
+    }
+  ],
+  "meta": {
+    "resource": {
+      "title": "Individual Styles",
+      "permalink": "r~styles~individual~styles"
+    },
+    "group": {
+      "title": "Styles",
+      "permalink": "g~styles"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "JSON Value",
+        "description": "",
+        "method": "PATCH",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "body": "{\n    \"name\": \"Name of Style\",\n    \"style\": \"Mapbox Style Object Here\"\n}\n"
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

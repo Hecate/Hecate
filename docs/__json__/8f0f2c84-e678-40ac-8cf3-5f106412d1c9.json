@@ -1,0 +1,47 @@
+{
+  "title": "/api/auth",
+  "description": "Return a Custom Authentication JSON object, documenting what permissions\nare required for any given API endpoint on the server. Used by both the Admin UI\nand HecateJS to determine if auth is needed before making a given API request.",
+  "permalink": "t~authentication~authentication~get~api~auth",
+  "uuid": "8f0f2c84-e678-40ac-8cf3-5f106412d1c9",
+  "method": "GET",
+  "path": "/api/auth",
+  "pathTemplate": "/api/auth",
+  "parameters": [],
+  "meta": {
+    "resource": {
+      "title": "Authentication",
+      "permalink": "r~authentication~authentication"
+    },
+    "group": {
+      "title": "Authentication",
+      "permalink": "g~authentication"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "body": "    {\n        \"See Custom Auth for example\"\n    }\n"
+      }
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "title": "/api/schema",
+  "description": "Return a [JSON Schema](https://json-schema.org/) that all Feature properties must conform to.",
+  "permalink": "t~json~schema~json~schema~get~api~schema",
+  "uuid": "09d358a8-932a-41be-8b96-e2d3db0b92ac",
+  "method": "GET",
+  "path": "/api/schema",
+  "pathTemplate": "/api/schema",
+  "parameters": [],
+  "meta": {
+    "resource": {
+      "title": "JSON Schema",
+      "permalink": "r~json~schema~json~schema"
+    },
+    "group": {
+      "title": "JSON Schema",
+      "permalink": "g~json~schema"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "body": "    {\n        \"See JSON Schema link for examples\"\n    }\n"
+      }
+    }
+  ]
+}

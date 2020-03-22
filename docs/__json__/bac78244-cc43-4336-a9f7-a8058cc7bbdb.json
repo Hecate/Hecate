@@ -1,0 +1,69 @@
+{
+  "title": "/api/meta/{key}",
+  "description": "Create and store a new `key:value` pair, overwriting any existing value.\n\nThe key should be the URL encoded `{key}` value, while the value can be any JSON\nvalue included in the request body.",
+  "permalink": "t~metadata~individual~meta~post~api~meta~key",
+  "uuid": "bac78244-cc43-4336-a9f7-a8058cc7bbdb",
+  "method": "POST",
+  "path": "/api/meta/{key}",
+  "pathTemplate": "/api/meta/{key}",
+  "parameters": [
+    {
+      "location": "path",
+      "name": "key",
+      "description": "",
+      "required": true,
+      "example": "name",
+      "schema": {
+        "type": "String"
+      }
+    }
+  ],
+  "meta": {
+    "resource": {
+      "title": "Individual Meta",
+      "permalink": "r~metadata~individual~meta"
+    },
+    "group": {
+      "title": "Metadata",
+      "permalink": "g~metadata"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "JSON Value",
+        "description": "",
+        "method": "POST",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "body": "\"Cool Hecate Server\"\n"
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "body": "    {\n        \"key\": \"name\",\n        \"value\": \"Cool Hecate Server\"\n    }\n"
+      }
+    }
+  ]
+}

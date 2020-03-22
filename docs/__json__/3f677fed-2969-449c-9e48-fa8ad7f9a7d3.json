@@ -1,0 +1,46 @@
+{
+  "title": "/api/user/{id}",
+  "description": "Obtain information about any user in the system by their numeric User ID.\n\nNote the information returned is the same information that a user is able to\nlookup about themself with the `GET /api/user/info` endpoint.",
+  "permalink": "t~users~user~info~get~api~user~id",
+  "uuid": "3f677fed-2969-449c-9e48-fa8ad7f9a7d3",
+  "method": "GET",
+  "path": "/api/user/{id}",
+  "pathTemplate": "/api/user/{id}",
+  "parameters": [
+    {
+      "location": "path",
+      "name": "id",
+      "description": "User ID to obtain user information for",
+      "required": true,
+      "schema": {
+        "type": "number"
+      }
+    }
+  ],
+  "meta": {
+    "resource": {
+      "title": "User Info",
+      "permalink": "r~users~user~info"
+    },
+    "group": {
+      "title": "Users",
+      "permalink": "g~users"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "headers": []
+      }
+    }
+  ]
+}

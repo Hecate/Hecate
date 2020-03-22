@@ -1,0 +1,57 @@
+{
+  "title": "/api/user/token/{token_id}",
+  "description": "Permanently delete a given API token",
+  "permalink": "t~authentication~token~delete~api~user~token~token~id",
+  "uuid": "82357109-6437-4255-8026-42c276347ea5",
+  "method": "DELETE",
+  "path": "/api/user/token/{token_id}",
+  "pathTemplate": "/api/user/token/{token_id}",
+  "parameters": [
+    {
+      "location": "path",
+      "name": "token_id",
+      "description": "The token ID or token itself",
+      "required": true,
+      "example": "1234",
+      "schema": {
+        "type": "String"
+      }
+    }
+  ],
+  "meta": {
+    "resource": {
+      "title": "Token",
+      "permalink": "r~authentication~token"
+    },
+    "group": {
+      "title": "Authentication",
+      "permalink": "g~authentication"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "DELETE",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

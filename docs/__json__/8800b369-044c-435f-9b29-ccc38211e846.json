@@ -1,0 +1,36 @@
+{
+  "title": "/api/data/query",
+  "description": "Return a Line-Delimited GeoJSON stream of all features that match the given query.\n\nThe query must be a valid SQL query against the `geo` table. Note that the `geo` is\nthe only table that this endpoint can access. Only read operations are permitted.\n\nNote: All streaming GeoJSON endpoints will send the Unitcode End Of Transmission, EOT\n(`0x04`) on stream completion. This can be used to ensure that a stream did not exit early.\n\nIE:\n\n```SQL\nSELECT count(*) FROM geo\n```\n\n```SQL\nSELECT props FROM geo WHERE id = 1\n```",
+  "permalink": "t~data~downloading~view~query~get~api~data~query",
+  "uuid": "8800b369-044c-435f-9b29-ccc38211e846",
+  "method": "GET",
+  "path": "/api/data/query",
+  "pathTemplate": "/api/data/query",
+  "parameters": [],
+  "meta": {
+    "resource": {
+      "title": "Downloading view Query",
+      "permalink": "r~data~downloading~view~query"
+    },
+    "group": {
+      "title": "Data",
+      "permalink": "g~data"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "headers": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "title": "/api/data/feature",
+  "description": "Create, Modify, or Delete an individual GeoJSON `Feature`\n\nThe Feature must follow format defined in the Feature Format section of the README.\n\nThe feature also must contain a top-level String `message` attribute describing the changes being made (The delta message)",
+  "permalink": "t~data~feature~post~api~data~feature",
+  "uuid": "339cf5ee-7615-4638-b4e1-e3085e2fd4b7",
+  "method": "POST",
+  "path": "/api/data/feature",
+  "pathTemplate": "/api/data/feature{?key}{?point}",
+  "parameters": [
+    {
+      "location": "query",
+      "name": "key",
+      "description": "Retrieve a feature by it's `key` property",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "location": "query",
+      "name": "point",
+      "description": "Query for a single feature at the given point",
+      "required": false,
+      "schema": {
+        "type": "number[]"
+      }
+    }
+  ],
+  "meta": {
+    "resource": {
+      "title": "Feature",
+      "permalink": "r~data~feature"
+    },
+    "group": {
+      "title": "Data",
+      "permalink": "g~data"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "POST",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "headers": []
+      }
+    }
+  ]
+}

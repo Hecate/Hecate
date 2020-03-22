@@ -1,0 +1,47 @@
+{
+  "title": "/api/webhooks",
+  "description": "Create a new webhook",
+  "permalink": "t~webhooks~webhooks~post~api~webhooks",
+  "uuid": "b66c4fcd-2172-42a3-89ca-8cba45ae9e58",
+  "method": "POST",
+  "path": "/api/webhooks",
+  "pathTemplate": "/api/webhooks",
+  "parameters": [],
+  "meta": {
+    "resource": {
+      "title": "Webhooks",
+      "permalink": "r~webhooks~webhooks"
+    },
+    "group": {
+      "title": "Webhooks",
+      "permalink": "g~webhooks"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "JSON Value",
+        "description": "",
+        "method": "POST",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "body": "{\n    \"name\": \"Webhook Name\",\n    \"url\": \"https://example.com\",\n    \"actions\": [\"meta\", \"user\", \"delta\", \"style\"]\n}\n"
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "headers": []
+      }
+    }
+  ]
+}

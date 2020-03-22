@@ -1,0 +1,83 @@
+{
+  "title": "/api/deltas",
+  "description": "Returns an array of the last `limit` defined number of deltas (default: 20). with their corresponding metadata. Does not include geometric\ndata on the delta. Request a specific delta to get geometric data.\n\nThe deltas endpoint has 2 modes. The first is a fixed list of the last `n` deltas. The second is listing deltas by time stamp. the query parameters\nfor these two modes are mutually exclusive.",
+  "permalink": "t~deltas~deltas~get~api~deltas",
+  "uuid": "6fc54de9-1b4e-4968-8a9d-2097a8046caa",
+  "method": "GET",
+  "path": "/api/deltas",
+  "pathTemplate": "/api/deltas{?offset}{?limit}{?start}{?end}",
+  "parameters": [
+    {
+      "location": "query",
+      "name": "offset",
+      "description": "Returns deltas before the given offset",
+      "required": false,
+      "schema": {
+        "type": "number"
+      }
+    },
+    {
+      "location": "query",
+      "name": "limit",
+      "description": "Increase or decrease the max number of returned deltas (Max 100)",
+      "required": false,
+      "schema": {
+        "type": "number"
+      }
+    },
+    {
+      "location": "query",
+      "name": "start",
+      "description": "Timestamp with which to filter between",
+      "required": false,
+      "schema": {
+        "type": "date"
+      }
+    },
+    {
+      "location": "query",
+      "name": "end",
+      "description": "Timestamp with which to filter deltas between",
+      "required": false,
+      "schema": {
+        "type": "date"
+      }
+    }
+  ],
+  "meta": {
+    "resource": {
+      "title": "Deltas",
+      "permalink": "r~deltas~deltas"
+    },
+    "group": {
+      "title": "Deltas",
+      "permalink": "g~deltas"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

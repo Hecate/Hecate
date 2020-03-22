@@ -1,0 +1,36 @@
+{
+  "title": "/admin",
+  "description": "",
+  "permalink": "t~admin~ui~admin~ui~get~admin",
+  "uuid": "90a3d9f5-0d12-4aa4-bb19-82edd6153670",
+  "method": "GET",
+  "path": "/admin",
+  "pathTemplate": "/admin",
+  "parameters": [],
+  "meta": {
+    "resource": {
+      "title": "Admin UI",
+      "permalink": "r~admin~ui~admin~ui"
+    },
+    "group": {
+      "title": "Admin UI",
+      "permalink": "g~admin~ui"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "headers": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "title": "/api/webhooks",
+  "description": "Return a JSON object containing a list of all webhooks maintained by the server",
+  "permalink": "t~webhooks~webhooks~get~api~webhooks",
+  "uuid": "75252857-3e55-43b8-930e-5e6474346da4",
+  "method": "GET",
+  "path": "/api/webhooks",
+  "pathTemplate": "/api/webhooks",
+  "parameters": [],
+  "meta": {
+    "resource": {
+      "title": "Webhooks",
+      "permalink": "r~webhooks~webhooks"
+    },
+    "group": {
+      "title": "Webhooks",
+      "permalink": "g~webhooks"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "headers": []
+      }
+    }
+  ]
+}
