@@ -10,6 +10,10 @@
 
 # Version History
 
+## v0.86.3
+
+- :rocket: Error objects no longer need `.description()` call
+
 ## v0.86.2
 
 - :bug: Fix postgis/postgres version checking
