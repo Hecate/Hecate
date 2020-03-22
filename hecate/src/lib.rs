@@ -1,6 +1,15 @@
-pub static VERSION: &str = "0.86.1";
-pub static POSTGRES: f64 = 10.0;
-pub static POSTGIS: f64 = 2.4;
+#[macro_use]
+extern crate lazy_static;
+
+use semver::VersionReq;
+
+lazy_static! {
+    pub static ref POSTGRES_VERSION: VersionReq = VersionReq::parse(">= 11.0.0")
+        .expect("Failed to parse POSTGRES_VERSION as semver::VersionReq");
+    pub static ref POSTGIS_VERSION: VersionReq = VersionReq::parse(">= 2.5.0")
+        .expect("Failed to parse POSTGIS_VERSION as semver::VersionReq");
+}
+
 pub static HOURS: i64 = 24;
 
 ///
@@ -345,7 +354,7 @@ fn server(
     auth::check(&auth_rules.0.server, auth::RW::Read, &auth)?;
 
     Ok(Json(json!({
-        "version": VERSION,
+        "version": env!("CARGO_PKG_VERSION"),
         "constraints": {
             "request": {
                 "max_size": MAX_BODY
