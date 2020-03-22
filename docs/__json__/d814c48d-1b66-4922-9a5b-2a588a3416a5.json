@@ -1,0 +1,57 @@
+{
+  "title": "/api/style",
+  "description": "Create a new private style attached to the authenticated user",
+  "permalink": "t~styles~create~stypes~post~api~style",
+  "uuid": "d814c48d-1b66-4922-9a5b-2a588a3416a5",
+  "method": "POST",
+  "path": "/api/style",
+  "pathTemplate": "/api/style",
+  "parameters": [],
+  "meta": {
+    "resource": {
+      "title": "Create Stypes",
+      "permalink": "r~styles~create~stypes"
+    },
+    "group": {
+      "title": "Styles",
+      "permalink": "g~styles"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "JSON Value",
+        "description": "",
+        "method": "POST",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "body": "{\n    \"name\": \"Name of Style\",\n    \"style\": \"Mapbox Style Object Here\"\n}\n"
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "title": "/api/style/{style_id}/{style_access}",
+  "description": "Note: Once a style is public other users may have cloned it. This will not\naffect cloned styles that were made when it was public.",
+  "permalink": "t~styles~style~access~post~api~style~style~id~style~access",
+  "uuid": "e405b6de-e901-43ed-94e7-e9dba9cae7f5",
+  "method": "POST",
+  "path": "/api/style/{style_id}/{style_access}",
+  "pathTemplate": "/api/style/{style_id}/{style_access}",
+  "parameters": [
+    {
+      "location": "path",
+      "name": "style_id",
+      "description": "The style ID to lookup",
+      "required": true,
+      "example": "1",
+      "schema": {
+        "type": "integer"
+      }
+    },
+    {
+      "location": "path",
+      "name": "style_access",
+      "description": "The access type - currently \"public\" or \"private\"",
+      "required": true,
+      "example": "public",
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "meta": {
+    "resource": {
+      "title": "Style Access",
+      "permalink": "r~styles~style~access"
+    },
+    "group": {
+      "title": "Styles",
+      "permalink": "g~styles"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "POST",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

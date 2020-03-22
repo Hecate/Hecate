@@ -1,0 +1,57 @@
+{
+  "title": "/api/data/features",
+  "description": "Create, Modify, and/or Delete many features via a GeoJSON `FeatureCollection`\n\nThe Features in the FeatureCollection must follow format defined in [Feature Format](#feature-format).\n\nThe FeatureCollection also must contain a top-level String `message` attribute describing the changes being made (The delta message)\n\nNote that a mix of `create`, `modify`, and `delete` operations are allowed\nwithin each `FeatureCollection`",
+  "permalink": "t~data~features~post~api~data~features",
+  "uuid": "e13d5ba3-5579-4140-a65a-ce8279cdfd20",
+  "method": "POST",
+  "path": "/api/data/features",
+  "pathTemplate": "/api/data/features",
+  "parameters": [],
+  "meta": {
+    "resource": {
+      "title": "Features",
+      "permalink": "r~data~features"
+    },
+    "group": {
+      "title": "Data",
+      "permalink": "g~data"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "JSON Value",
+        "description": "",
+        "method": "POST",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "body": "{\n    \"type\": \"FeatureCollection\",\n    \"message\": \"A bunch of changes\",\n    \"features\": [{\n        \"action\": \"create\",\n        \"properties\": {\n            \"shop\": true\n        },\n        \"geometry\": {\n            \"type\": \"Polygon\",\n            \"coordinates\": [ [0,0], [0, 1], [1, 1], [1, 0], [0, 0] ]\n        }\n    }]\n}\n"
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

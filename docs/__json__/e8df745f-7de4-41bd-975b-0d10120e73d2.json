@@ -1,0 +1,36 @@
+{
+  "title": "/api/user/info",
+  "description": "Allows an authenticated user to obtain information about their own account",
+  "permalink": "t~users~self~info~get~api~user~info",
+  "uuid": "e8df745f-7de4-41bd-975b-0d10120e73d2",
+  "method": "GET",
+  "path": "/api/user/info",
+  "pathTemplate": "/api/user/info",
+  "parameters": [],
+  "meta": {
+    "resource": {
+      "title": "Self Info",
+      "permalink": "r~users~self~info"
+    },
+    "group": {
+      "title": "Users",
+      "permalink": "g~users"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "headers": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "title": "/api/data/bounds/{bounds}",
+  "description": "Return line delimited GeoJSON `Feature` of all the geometries within the specified boundary file.\n\nNote: All streaming GeoJSON endpoints will send the Unitcode End Of Transmission, EOT\n(`0x04`) on stream completion. This can be used to ensure that a stream did not exit early.",
+  "permalink": "t~boundaries~bound~get~api~data~bounds~bounds",
+  "uuid": "5cdb9d68-4d54-4258-bda1-674b488c306d",
+  "method": "GET",
+  "path": "/api/data/bounds/{bounds}",
+  "pathTemplate": "/api/data/bounds/{bounds}",
+  "parameters": [
+    {
+      "location": "path",
+      "name": "bounds",
+      "description": "One of the boundary files as specified via the `/api/data/bounds`",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "meta": {
+    "resource": {
+      "title": "Bound",
+      "permalink": "r~boundaries~bound"
+    },
+    "group": {
+      "title": "Boundaries",
+      "permalink": "g~boundaries"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "headers": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "title": "/api/data/features/history",
+  "description": "Return streaming Line-Delimited GeoJSON of all versions of features that fall within the provided BBOX or Point.\nThis includes the current version of the feature. Features in `delete` state will not be included\nas their geometries are not recorded.\n\nNote: All streaming GeoJSON endpoints will send the Unitcode End Of Transmission, EOT\n(`0x04`) on stream completion. This can be used to ensure that a stream did not exit early.",
+  "permalink": "t~data~downloading~multiple~features~history~get~api~data~features~history",
+  "uuid": "aa684b6b-3916-481d-b262-3e23c7b5e80e",
+  "method": "GET",
+  "path": "/api/data/features/history",
+  "pathTemplate": "/api/data/features/history{?bbox}{?point}",
+  "parameters": [
+    {
+      "location": "query",
+      "name": "bbox",
+      "description": "Bounding box in format `left,bottom,right,top` or `minX, minY, maxX, maxY`",
+      "required": false,
+      "schema": {
+        "type": "number[]"
+      }
+    },
+    {
+      "location": "query",
+      "name": "point",
+      "description": "Retrieve all features that intersect point in format `Lng,Lat`",
+      "required": false,
+      "schema": {
+        "type": "number[]"
+      }
+    }
+  ],
+  "meta": {
+    "resource": {
+      "title": "Downloading Multiple Features' History",
+      "permalink": "r~data~downloading~multiple~features~history"
+    },
+    "group": {
+      "title": "Data",
+      "permalink": "g~data"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "headers": []
+      }
+    }
+  ]
+}

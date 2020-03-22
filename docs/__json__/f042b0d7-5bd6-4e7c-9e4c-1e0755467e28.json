@@ -1,0 +1,64 @@
+{
+  "title": "/api/user/create",
+  "description": "Create a new user, provied the username & email are not already taken",
+  "permalink": "t~users~create~user~get~api~user~create",
+  "uuid": "f042b0d7-5bd6-4e7c-9e4c-1e0755467e28",
+  "method": "GET",
+  "path": "/api/user/create",
+  "pathTemplate": "/api/user/create{?username}{?password}{?email}",
+  "parameters": [
+    {
+      "location": "query",
+      "name": "username",
+      "description": "Desired username, must be unique",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "location": "query",
+      "name": "password",
+      "description": "Desired password",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "location": "query",
+      "name": "email",
+      "description": "Desired email, must be unique",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "meta": {
+    "resource": {
+      "title": "Create User",
+      "permalink": "r~users~create~user"
+    },
+    "group": {
+      "title": "Users",
+      "permalink": "g~users"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "headers": []
+      }
+    }
+  ]
+}

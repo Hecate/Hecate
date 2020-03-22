@@ -1,0 +1,83 @@
+{
+  "title": "/api/meta/{key}",
+  "description": "Return the `key:value` pair for the requested `{key}` value.",
+  "permalink": "t~metadata~individual~meta~get~api~meta~key",
+  "uuid": "d403db5c-8419-4127-9260-24f3c79dd184",
+  "method": "GET",
+  "path": "/api/meta/{key}",
+  "pathTemplate": "/api/meta/{key}",
+  "parameters": [
+    {
+      "location": "path",
+      "name": "key",
+      "description": "",
+      "required": true,
+      "example": "name",
+      "schema": {
+        "type": "String"
+      }
+    }
+  ],
+  "meta": {
+    "resource": {
+      "title": "Individual Meta",
+      "permalink": "r~metadata~individual~meta"
+    },
+    "group": {
+      "title": "Metadata",
+      "permalink": "g~metadata"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "body": "    {\n        \"key\": \"name\",\n        \"value\": \"Cool Hecate Server\"\n    }\n"
+      }
+    },
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "404",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "body": "    {\n        \"code\": 404,\n        \"reason\", \"Key not found\",\n        \"status\", \"Not Found\"\n    }\n"
+      }
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "title": "/api/data/stats",
+  "description": "Return a JSON object containing statistics and metadata about the geometries stored in the server",
+  "permalink": "t~data~data~stats~get~api~data~stats",
+  "uuid": "ce66b5b1-1fc1-46ba-ad63-54cce5ec6eac",
+  "method": "GET",
+  "path": "/api/data/stats",
+  "pathTemplate": "/api/data/stats",
+  "parameters": [],
+  "meta": {
+    "resource": {
+      "title": "Data Stats",
+      "permalink": "r~data~data~stats"
+    },
+    "group": {
+      "title": "Data",
+      "permalink": "g~data"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "body": "    {\n        \"bbox\":  [0,0,1,1],\n        \"last_calc\": null,\n        \"total\":0\n    }\n"
+      }
+    }
+  ]
+}

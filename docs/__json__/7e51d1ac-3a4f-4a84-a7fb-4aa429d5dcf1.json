@@ -1,0 +1,46 @@
+{
+  "title": "/api/data/feature/{id}/history",
+  "description": "Return an array containing the full feature history for the provided feature id.",
+  "permalink": "t~data~feature~history~get~api~data~feature~id~history",
+  "uuid": "7e51d1ac-3a4f-4a84-a7fb-4aa429d5dcf1",
+  "method": "GET",
+  "path": "/api/data/feature/{id}/history",
+  "pathTemplate": "/api/data/feature/{id}/history",
+  "parameters": [
+    {
+      "location": "path",
+      "name": "id",
+      "description": "ID of Feature to retrieve",
+      "required": true,
+      "schema": {
+        "type": "number"
+      }
+    }
+  ],
+  "meta": {
+    "resource": {
+      "title": "Feature History",
+      "permalink": "r~data~feature~history"
+    },
+    "group": {
+      "title": "Data",
+      "permalink": "g~data"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "headers": []
+      }
+    }
+  ]
+}

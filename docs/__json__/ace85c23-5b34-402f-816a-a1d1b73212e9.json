@@ -1,0 +1,56 @@
+{
+  "title": "/api/deltas/{id}",
+  "description": "Returns all data for a given delta as a JSON Object, including geometric data.",
+  "permalink": "t~deltas~individual~delta~get~api~deltas~id",
+  "uuid": "ace85c23-5b34-402f-816a-a1d1b73212e9",
+  "method": "GET",
+  "path": "/api/deltas/{id}",
+  "pathTemplate": "/api/deltas/{id}",
+  "parameters": [
+    {
+      "location": "path",
+      "name": "id",
+      "description": "ID of delta to retrieve",
+      "required": true,
+      "schema": {
+        "type": "number"
+      }
+    }
+  ],
+  "meta": {
+    "resource": {
+      "title": "Individual Delta",
+      "permalink": "r~deltas~individual~delta"
+    },
+    "group": {
+      "title": "Deltas",
+      "permalink": "g~deltas"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

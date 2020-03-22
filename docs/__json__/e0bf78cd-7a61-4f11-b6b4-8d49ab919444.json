@@ -1,0 +1,46 @@
+{
+  "title": "/api/user/tokens",
+  "description": "",
+  "permalink": "t~authentication~user~tokens~get~api~user~tokens",
+  "uuid": "e0bf78cd-7a61-4f11-b6b4-8d49ab919444",
+  "method": "GET",
+  "path": "/api/user/tokens",
+  "pathTemplate": "/api/user/tokens",
+  "parameters": [],
+  "meta": {
+    "resource": {
+      "title": "User Tokens",
+      "permalink": "r~authentication~user~tokens"
+    },
+    "group": {
+      "title": "Authentication",
+      "permalink": "g~authentication"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

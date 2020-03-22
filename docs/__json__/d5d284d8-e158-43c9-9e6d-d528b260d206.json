@@ -1,0 +1,57 @@
+{
+  "title": "/api/styles/{uid}",
+  "description": "Return an array containing styles owned by a particular user.\n\nBy default any request will only return the public styles for a given user.\n\nIf an authenticated user requests their own styles, it will return their public and private styles.",
+  "permalink": "t~styles~user~styles~get~api~styles~uid",
+  "uuid": "d5d284d8-e158-43c9-9e6d-d528b260d206",
+  "method": "GET",
+  "path": "/api/styles/{uid}",
+  "pathTemplate": "/api/styles/{uid}",
+  "parameters": [
+    {
+      "location": "path",
+      "name": "uid",
+      "description": "The user ID to lookup styles for",
+      "required": true,
+      "example": "1",
+      "schema": {
+        "type": "integer"
+      }
+    }
+  ],
+  "meta": {
+    "resource": {
+      "title": "User Styles",
+      "permalink": "r~styles~user~styles"
+    },
+    "group": {
+      "title": "Styles",
+      "permalink": "g~styles"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "contentType": "application/json",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "example": "application/json",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

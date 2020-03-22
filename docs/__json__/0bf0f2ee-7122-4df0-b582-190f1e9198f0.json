@@ -1,0 +1,55 @@
+{
+  "title": "/api/users",
+  "description": "Get a list of users (up to 100) or filter by a given user prefix.",
+  "permalink": "t~users~list~users~get~api~users",
+  "uuid": "0bf0f2ee-7122-4df0-b582-190f1e9198f0",
+  "method": "GET",
+  "path": "/api/users",
+  "pathTemplate": "/api/users{?filter}{?limit}",
+  "parameters": [
+    {
+      "location": "query",
+      "name": "filter",
+      "description": "Desired search prefix for username",
+      "required": false,
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "location": "query",
+      "name": "limit",
+      "description": "limit the number of returned results",
+      "required": false,
+      "schema": {
+        "type": "number"
+      }
+    }
+  ],
+  "meta": {
+    "resource": {
+      "title": "List Users",
+      "permalink": "r~users~list~users"
+    },
+    "group": {
+      "title": "Users",
+      "permalink": "g~users"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "GET",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "headers": []
+      }
+    }
+  ]
+}

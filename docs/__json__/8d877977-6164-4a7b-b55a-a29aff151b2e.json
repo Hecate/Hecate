@@ -1,0 +1,46 @@
+{
+  "title": "/api/user/{id}/admin",
+  "description": "Allows a user to be set as an admin",
+  "permalink": "t~users~user~access~put~api~user~id~admin",
+  "uuid": "8d877977-6164-4a7b-b55a-a29aff151b2e",
+  "method": "PUT",
+  "path": "/api/user/{id}/admin",
+  "pathTemplate": "/api/user/{id}/admin",
+  "parameters": [
+    {
+      "location": "path",
+      "name": "id",
+      "description": "User ID to obtain user information for",
+      "required": true,
+      "schema": {
+        "type": "number"
+      }
+    }
+  ],
+  "meta": {
+    "resource": {
+      "title": "User Access",
+      "permalink": "r~users~user~access"
+    },
+    "group": {
+      "title": "Users",
+      "permalink": "g~users"
+    }
+  },
+  "transactions": [
+    {
+      "request": {
+        "title": "",
+        "description": "",
+        "method": "PUT",
+        "headers": []
+      },
+      "response": {
+        "title": "",
+        "description": "",
+        "statusCode": "200",
+        "headers": []
+      }
+    }
+  ]
+}
