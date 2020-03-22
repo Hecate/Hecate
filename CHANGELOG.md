@@ -10,6 +10,10 @@
 
 # Version History
 
+## v0.86.2
+
+- :bug: Fix postgis/postgres version checking
+
 ## v0.86.1
 
 - :rocket: meta data endpoint now returns proper 404 if the key is not found
