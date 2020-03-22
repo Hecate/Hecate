@@ -45,7 +45,7 @@ if [[ ! $(grep "v${NVER}" CHANGELOG.md | wc -l | awk '{print $1}') -eq 1 ]]; the
     exit 1
 fi
 
-snowboard html docs/API.apib -o docs/index.html
+snowboard html docs/API.apib -o docs/
 
 sed -i.bak "s/\"$CVER\"/\"$NVER\"/" ./hecate/Cargo.toml
 rm ./hecate/Cargo.toml.bak
