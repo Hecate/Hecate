@@ -28,7 +28,7 @@ impl Meta {
         ", &[&key]) {
             Ok(rows) => {
                 if rows.is_empty() {
-                    return Err(HecateError::new(404, String::from("Key not found"), None));
+                    Err(HecateError::new(404, String::from("Key not found"), None))
                 } else {
                     Ok(Meta::new(key, rows.get(0).get(0)))
                 }

@@ -358,8 +358,7 @@ pub fn rw_met(rw: RW, auth: &Auth) -> Result<(), HecateError> {
     if rw == RW::Full && auth.scope == RW::Read {
         return Err(not_authed());
     }
-
-    return Ok(());
+    Ok(())
 }
 
 ///
@@ -379,16 +378,16 @@ fn auth_met(required: &Option<String>, auth: &Auth) -> Result<bool, HecateError>
             "public" => Ok(true),
             "admin" => {
                 if auth.uid.is_some() && auth.access == AuthAccess::Admin {
-                    return Ok(true);
+                    Ok(true)
                 } else {
-                    return Err(not_authed());
+                    Err(not_authed())
                 }
             },
             "user" => {
                 if auth.uid.is_some() {
-                    return Ok(true);
+                   Ok(true)
                 } else {
-                    return Err(not_authed());
+                    Err(not_authed())
                 }
             },
             "self" => {
@@ -397,9 +396,9 @@ fn auth_met(required: &Option<String>, auth: &Auth) -> Result<bool, HecateError>
                 //the UID of 'self' matches the requested resource
 
                 if auth.uid.is_some() {
-                    return Ok(true);
+                    Ok(true)
                 } else {
-                    return Err(not_authed());
+                    Err(not_authed())
                 }
             },
             _ => Err(not_authed())
