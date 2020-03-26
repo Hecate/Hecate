@@ -147,9 +147,7 @@ fn database_check(conn_str: &String, is_read: bool) {
                             Ok(version) => version,
                             Err(_) => {
                                 let fix_semver = format!("{}.0", postgres_v);
-                                Version::parse(&fix_semver).expect(
-                                    format!("Failed to parse semver for PostgreSQL {}.", fix_semver).as_str()
-                                )
+                                Version::parse(&fix_semver).unwrap_or_else(|_| panic!("Failed to parse semver for PostgreSQL {}.", fix_semver))
                             }
                         };
                         if ! hecate::POSTGRES_VERSION.matches(&got_postgres_v) {
@@ -164,9 +162,7 @@ fn database_check(conn_str: &String, is_read: bool) {
                             Ok(version) => version,
                             Err(_) => {
                                 let fix_semver = format!("{}.0", postgis_v);
-                                Version::parse(&fix_semver).expect(
-                                    format!("Failed to parse semver for PostGIS {}", fix_semver).as_str()
-                                )
+                                Version::parse(&fix_semver).unwrap_or_else(|_| panic!("Failed to parse semver for PostGIS {}", fix_semver))
                             }
                         };
                         if ! hecate::POSTGIS_VERSION.matches(&got_postgis_v) {
