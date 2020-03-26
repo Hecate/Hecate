@@ -56,10 +56,9 @@ fn main() {
 
             let mut auth = String::new();
 
-            match auth_file.read_to_string(&mut auth) {
-                Err(err) => panic!("Could not read auth file: {}", err.to_string()),
-                _ => ()
-            };
+            if let Err(err) = auth_file.read_to_string(&mut auth) {
+                panic!("Could not read auth file: {}", err.to_string())
+            }
 
             let auth: serde_json::Value = match serde_json::from_str(&*auth) {
                 Ok(auth) => auth,
