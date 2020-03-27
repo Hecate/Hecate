@@ -15,10 +15,10 @@ impl User {
     pub fn new(username: String, password: Option<String>, email: String, meta: Option<serde_json::Value>) -> Self {
         User {
             id: None,
-            username: username,
-            password: password,
-            email: email,
-            meta: meta,
+            username,
+            password,
+            email,
+            meta,
             access: Some(String::from("default"))
         }
     }

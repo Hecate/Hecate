@@ -91,10 +91,8 @@ impl std::io::Read for PGStream {
             } else if current + write.len() > buf.len() {
                 //There is room to put a partial feature, saving the remaining
                 //to the pending q and ending
-
-                for it in current..buf.len() {
-                    buf[it] = write[it - current];
-                }
+                let length = buf.len();
+                buf[current..].clone_from_slice(&write[0..(length - current)]);
 
                 let pending = write[buf.len() - current..write.len()].to_vec();
                 self.pending = Some(pending);
@@ -106,9 +104,7 @@ impl std::io::Read for PGStream {
                 //There is room in the buff to print the whole feature
                 //and iterate around to grab another
 
-                for it in 0..write.len() {
-                    buf[current + it] = write[it];
-                }
+                buf[current..(write.len() + current)].clone_from_slice(&write[..]);
 
                 current += write.len();
             }

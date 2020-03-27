@@ -897,7 +897,7 @@ pub fn parse_osm(xml_node: &XMLEvents::BytesStart, meta: &mut HashMap<String, St
         None => { return Err(XMLError::InternalError(String::from("version required"))); }
     };
 
-    if v != 0.6 { return Err(XMLError::InternalError(String::from("api only supports 0.6"))); }
+    if relative_ne!(v, 0.6) { return Err(XMLError::InternalError(String::from("api only supports 0.6"))); }
 
     Ok(true)
 }
