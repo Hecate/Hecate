@@ -10,6 +10,10 @@
 
 # Version History
 
+## v0.86.4
+
+- :rocket: Fix a bunch of clippy warnings
+
 ## v0.86.3
 
 - :rocket: Error objects no longer need `.description()` call
