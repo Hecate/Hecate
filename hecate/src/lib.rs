@@ -1437,14 +1437,30 @@ fn features_action(
             }
         };
 
-        let delta_message = match fc.foreign_members {
-            None => { return Err(HecateError::new(400, String::from("FeatureCollection Must have message property for delta"), None)); }
-            Some(ref members) => match members.get("message") {
-                Some(message) => match message.as_str() {
-                    Some(message) => String::from(message),
+        let (delta_message, delta_revert) = match fc.foreign_members {
+            None => {
+                return Err(HecateError::new(400, String::from("FeatureCollection Must have message property for delta"), None));
+            },
+            Some(ref members) => {
+                let message = match members.get("message") {
+                    Some(message) => match message.as_str() {
+                        Some(message) => String::from(message),
+                        None => { return Err(HecateError::new(400, String::from("FeatureCollection Must have message property for delta"), None)); }
+                    },
                     None => { return Err(HecateError::new(400, String::from("FeatureCollection Must have message property for delta"), None)); }
-                },
-                None => { return Err(HecateError::new(400, String::from("FeatureCollection Must have message property for delta"), None)); }
+                };
+
+                let revert = match members.get("revert") {
+                    Some(revert) => match revert.as_bool() {
+                        Some(revert) => revert,
+                        None => {
+                            return Err(HecateError::new(400, String::from("Revert property must be a boolean"), None));
+                        }
+                    },
+                    None => false
+                };
+
+                (message, revert)
             }
         };
 
@@ -1455,6 +1471,11 @@ fn features_action(
 
         let mut map: HashMap<String, Option<String>> = HashMap::new();
         map.insert(String::from("message"), Some(delta_message));
+        map.insert(String::from("revert"), Some(if delta_revert {
+            String::from("true")
+        } else {
+            String::from("false")
+        }));
 
         let delta_id = match delta::open(&trans, &map, uid) {
             Ok(id) => id,
@@ -1466,7 +1487,11 @@ fn features_action(
         };
 
         for feat in &mut fc.features {
-            match feature::is_force(&feat) {
+            if delta_revert {
+                feature::set_revert(feat, delta_revert);
+            }
+
+            match feature::is_force(feat) {
                 Err(err) => {
                     return Err(err);
                 },

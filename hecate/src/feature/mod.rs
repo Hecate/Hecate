@@ -59,6 +59,40 @@ pub fn is_force(feat: &geojson::Feature) -> Result<bool, HecateError> {
     }
 }
 
+///
+/// Check if the feature has the revert: true flag
+///
+pub fn is_revert(feat: &geojson::Feature) -> Result<bool, HecateError> {
+    match feat.foreign_members {
+        None => Ok(false),
+        Some(ref members) => match members.get("revert") {
+            Some(revert) => {
+                match revert.as_bool() {
+                    Some(revert) => Ok(revert),
+                    None => Err(import_error(&feat, "revert must be a boolean", None))
+                }
+            },
+            None => Ok(false)
+        }
+    }
+}
+
+///
+/// Check if the feature has the revert: true flag
+///
+pub fn set_revert(feat: &mut geojson::Feature, revert: bool) {
+    match &mut feat.foreign_members {
+        None => {
+            let mut map = serde_json::map::Map::default();
+            map.insert(String::from("revert"), serde_json::Value::Bool(revert));
+            feat.foreign_members = Some(serde_json::map::Map::default());
+        },
+        Some(map) =>{
+            map.insert(String::from("revert"), serde_json::Value::Bool(revert));
+        }
+    }
+}
+
 pub fn del_version(feat: &mut geojson::Feature) {
     match feat.foreign_members {
         None => (),
@@ -265,6 +299,8 @@ pub fn create(trans: &postgres::transaction::Transaction, schema: &Option<valico
         Ok(id) => Some(id)
     };
 
+    let revert = is_revert(&feat)?;
+
     if is_force(&feat)? {
         match trans.query("
             INSERT INTO geo (version, geom, props, deltas, key)
@@ -288,7 +324,7 @@ pub fn create(trans: &postgres::transaction::Transaction, schema: &Option<valico
                 let version: i64 = res.get(0).get(1);
 
                 match trans.query("
-                    INSERT INTO geo_history (action, geom, props, delta, key, id, version)
+                    INSERT INTO geo_history (action, geom, props, delta, key, id, version, reverted)
                         VALUES (
                             'create',
                             ST_SetSRID(ST_GeomFromGeoJSON($1), 4326),
@@ -296,7 +332,8 @@ pub fn create(trans: &postgres::transaction::Transaction, schema: &Option<valico
                             COALESCE($3, currval('deltas_id_seq')::BIGINT),
                             $4,
                             $5,
-                            $6
+                            $6,
+                            false
                         )
                 ", &[&geom_str, &props_str, &delta, &key, &new, &version]) {
                     Err(err) => {
@@ -337,7 +374,7 @@ pub fn create(trans: &postgres::transaction::Transaction, schema: &Option<valico
                 let version: i64 = res.get(0).get(1);
 
                 match trans.query("
-                    INSERT INTO geo_history (action, geom, props, delta, key, id, version)
+                    INSERT INTO geo_history (action, geom, props, delta, key, id, version, reverted)
                         VALUES (
                             'create',
                             ST_SetSRID(ST_GeomFromGeoJSON($1), 4326),
@@ -345,7 +382,8 @@ pub fn create(trans: &postgres::transaction::Transaction, schema: &Option<valico
                             COALESCE($3, currval('deltas_id_seq')::BIGINT),
                             $4,
                             $5,
-                            $6
+                            $6,
+                            false
                         ) RETURNING version;
                 ", &[&geom_str, &props_str, &delta, &key, &new, &version]) {
                     Err(err) => {
@@ -403,12 +441,14 @@ pub fn modify(trans: &postgres::transaction::Transaction, schema: &Option<valico
         Err(err) => { return Err(import_error(&feat, "Failed to stringify properties", Some(err.to_string()))) }
     };
 
+    let revert = is_revert(&feat)?;
+
     match trans.query("
             SELECT modify_geo($1, $2, COALESCE($5, currval('deltas_id_seq')::BIGINT), $3, $4, $6);
         ", &[&geom_str, &props_str, &id, &version, &delta, &key]) {
         Ok(_) => {
             match trans.query("
-                INSERT INTO geo_history (geom, props, id, version, delta, key, action)
+                INSERT INTO geo_history (geom, props, id, version, delta, key, action, reverted)
                     VALUES (
                         ST_SetSRID(ST_GeomFromGeoJSON($1), 4326),
                         $2::TEXT::JSON,
@@ -416,7 +456,8 @@ pub fn modify(trans: &postgres::transaction::Transaction, schema: &Option<valico
                         $4::BIGINT + 1,
                         COALESCE($5, currval('deltas_id_seq')::BIGINT),
                         $6,
-                        'modify'
+                        'modify',
+                        false
                     ) RETURNING version;
             ", &[&geom_str, &props_str, &id, &version, &delta, &key]) {
                 Ok(res) => {
@@ -462,17 +503,19 @@ pub fn delete(trans: &postgres::transaction::Transaction, feat: &geojson::Featur
     let id = get_id(&feat)?;
     let version = get_version(&feat)?;
     let key = get_key(&feat)?;
+    let revert = is_revert(&feat)?;
 
     match trans.query("SELECT delete_geo($1, $2);", &[&id, &version]) {
         Ok(_) => {
             match trans.query("
-                INSERT INTO geo_history (id, version, delta, key, action)
+                INSERT INTO geo_history (id, version, delta, key, action, reverted)
                     VALUES (
                         $1,
                         $2::BIGINT + 1,
                         COALESCE($3, currval('deltas_id_seq')::BIGINT),
                         $4,
-                        'delete'
+                        'delete',
+                        false
                     );
             ", &[&id, &version, &delta, &key]) {
                 Ok(_) => {
@@ -635,22 +678,24 @@ pub fn restore(trans: &postgres::transaction::Transaction, schema: &Option<valic
         Err(_) => { return Err(import_error(&feat, "Failed to stringify properties", None)) }
     };
 
+    let revert = is_revert(&feat)?;
+
     //Get the previous version, action, and all deltas of a given feature
     match trans.query("
-    SELECT
-        ARRAY_AGG(delta ORDER BY delta) as delta_ids,
-        MAX(version) as max_version,
-        (ARRAY_AGG(action ORDER BY version DESC))[1] as action
-    FROM (
         SELECT
-            delta,
-            version,
-            action
-        FROM
-            geo_history
-        WHERE
-            id=$1
-    ) t
+            ARRAY_AGG(delta ORDER BY delta) AS delta_ids,
+            MAX(version) AS max_version,
+            (ARRAY_AGG(action ORDER BY version DESC))[1] AS action
+        FROM (
+            SELECT
+                delta,
+                version,
+                action
+            FROM
+                geo_history
+            WHERE
+                id = $1
+        ) t
     ", &[&id]) {
         Ok(res) => {
             // Agg function returns row of NULLs if inner query doesn't return results
@@ -686,7 +731,7 @@ pub fn restore(trans: &postgres::transaction::Transaction, schema: &Option<valic
                 Ok(res) => {
                     let new_version: i64 = res.get(0).get(0);
                     match trans.query("
-                        INSERT INTO geo_history (geom, props, id, version, delta, key, action)
+                        INSERT INTO geo_history (geom, props, id, version, delta, key, action, reverted)
                             VALUES (
                                 ST_SetSRID(ST_GeomFromGeoJSON($1), 4326),
                                 $2::TEXT::JSON,
@@ -833,6 +878,7 @@ pub fn history(conn: &impl postgres::GenericConnection, feat_id: i64) -> Result<
                 'uid', deltas.uid,
                 'feat', JSON_Build_Object(
                     'id', geo_history.id,
+                    'revert': geo_history.revert,
                     'action', geo_history.action,
                     'key', geo_history.key,
                     'type', 'Feature',
@@ -879,6 +925,7 @@ pub fn get_point_history_stream(conn: r2d2::PooledConnection<r2d2_postgres::Post
                     key,
                     delta,
                     'Feature' AS type,
+                    revert,
                     version,
                     ST_AsGeoJSON(geom)::JSON AS geometry,
                     props AS properties
@@ -902,6 +949,7 @@ pub fn get_bbox_history_stream(conn: r2d2::PooledConnection<r2d2_postgres::Postg
                 SELECT
                     id,
                     action,
+                    revert,
                     key,
                     delta,
                     'Feature' AS type,
