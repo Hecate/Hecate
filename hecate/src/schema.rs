@@ -15,6 +15,13 @@ pub fn main(conn: &impl postgres::GenericConnection) {
         CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
     "#, &[]).unwrap();
 
+    conn.execute("
+        CREATE TABLE layers (
+            id          BIGSERIAL PRIMARY KEY,
+            name        TEXT NOT NULL,
+            meta        JSONB NOT NULL
+        );
+    ", &[]).unwrap()
 
     conn.execute("
         CREATE TABLE webhooks (
