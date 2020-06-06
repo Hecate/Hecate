@@ -23,6 +23,7 @@ pub static MAX_BODY: u64 = 20_971_520;
 #[macro_use] extern crate serde_derive;
 
 pub mod err;
+pub mod schema;
 pub mod validate;
 pub mod meta;
 pub mod stats;
