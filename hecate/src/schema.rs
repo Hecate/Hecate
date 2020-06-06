@@ -17,11 +17,10 @@ pub fn main(conn: &impl postgres::GenericConnection) {
 
     conn.execute("
         CREATE TABLE layers (
-            id          BIGSERIAL PRIMARY KEY,
-            name        TEXT NOT NULL,
+            name        TEXT PRIMARY KEY,
             meta        JSONB NOT NULL
         );
-    ", &[]).unwrap()
+    ", &[]).unwrap();
 
     conn.execute("
         CREATE TABLE webhooks (

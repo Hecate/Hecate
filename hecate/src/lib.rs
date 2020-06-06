@@ -25,6 +25,7 @@ pub static MAX_BODY: u64 = 20_971_520;
 pub mod err;
 pub mod schema;
 pub mod validate;
+pub mod layers;
 pub mod meta;
 pub mod stats;
 pub mod db;
