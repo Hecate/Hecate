@@ -1,7 +1,7 @@
 use actix_service::{Service, Transform};
 use actix_web::{http, dev::ServiceRequest, dev::ServiceResponse, Error, HttpResponse};
-use futures::future::{ok, FutureResult, Either};
-use futures::Poll;
+use futures::future::{ok, Either, Ready};
+use std::task::Poll;
 use crate::db::DbReplica;
 use crate::user::token::Scope;
 use super::{Auth, ServerAuthDefault, AuthAccess};
@@ -31,7 +31,7 @@ where
     type Error = Error;
     type InitError = ();
     type Transform = EnforceAuthMiddleware<S>;
-    type Future = FutureResult<Self::Transform, Self::InitError>;
+    type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
         ok(EnforceAuthMiddleware {
@@ -56,9 +56,9 @@ where
     type Request = ServiceRequest;
     type Response = ServiceResponse<B>;
     type Error = Error;
-    type Future = Either<S::Future, FutureResult<Self::Response, Self::Error>>;
+    type Future = Either<S::Future, Ready<Result<Self::Response, Self::Error>>>;
 
-    fn poll_ready(&mut self) -> Poll<(), Self::Error> {
+    fn poll_ready(&mut self) -> Poll<()> {
         self.service.poll_ready()
     }
 

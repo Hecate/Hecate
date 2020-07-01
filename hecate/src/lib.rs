@@ -43,7 +43,7 @@ pub mod auth;
 use actix_http::error::ResponseError;
 use actix_http::httpmessage::HttpMessage;
 use actix_web::{web, web::Json, App, HttpResponse, HttpRequest, HttpServer, middleware};
-use futures::{Future, Stream, future::Either};
+use futures::{Future, future::Either};
 use geojson::GeoJson;
 use crate::{
     auth::AuthModule,

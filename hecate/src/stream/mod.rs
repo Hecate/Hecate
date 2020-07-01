@@ -2,7 +2,8 @@ use postgres::types::ToSql;
 use std::io::{Error, ErrorKind};
 use crate::err::HecateError;
 use bytes::Bytes;
-use futures::Async;
+use futures::io::AsyncRead;
+use std::task::Poll;
 
 use std::mem;
 
@@ -18,10 +19,9 @@ pub struct PGStream {
 }
 
 impl futures::stream::Stream for PGStream {
-    type Item = Bytes;
-    type Error = HecateError;
+    type Item = Result<Bytes, HecateError>;
 
-    fn poll(&mut self) -> Result<futures::Async<Option<Self::Item>>, Self::Error> {
+    fn poll_next(&mut self) -> Poll<Option<Self::Item>> {
         let rows = match self.trans.query(&*format!("FETCH 1000 FROM {};", &self.cursor), &[]) {
             Ok(rows) => rows,
             Err(err) => { return Err(HecateError::new(500, err.to_string(), None)); }
@@ -30,14 +30,14 @@ impl futures::stream::Stream for PGStream {
         if rows.is_empty() {
             if self.eot {
                 // The Stream is complete
-                return Ok(Async::Ready(None));
+                return Ok(AsyncRead::Ready(None));
             } else {
                 self.eot = true;
                 // Write EOD Character to Stream
                 let mut bytes = Bytes::new();
                 bytes.extend_from_slice(&[EOT]);
 
-                return Ok(Async::Ready(Some(bytes)));
+                return Ok(AsyncRead::Ready(Some(bytes)));
             }
         }
 
@@ -49,7 +49,7 @@ impl futures::stream::Stream for PGStream {
             feats.push('\n');
         }
 
-        Ok(Async::Ready(Some(Bytes::from(feats))))
+        Ok(AsyncRead::Ready(Some(Bytes::from(feats))))
     }
 }
 
