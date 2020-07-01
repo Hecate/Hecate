@@ -30,7 +30,6 @@ RUN apt-get update -y \
         cmake \
         curl \
         wget \
-        git \
         gcc \
         git \
     && locale-gen en_US.UTF-8 \
