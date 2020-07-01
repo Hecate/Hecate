@@ -128,37 +128,37 @@ pub fn start(
                         .route(web::get().to(osm_map))
                     )
                     .service(web::resource("changeset/create")
-                        .route(web::put().to_async(osm_changeset_create))
+                        .route(web::put().to(osm_changeset_create))
                     )
                     .service(web::resource("changeset/{delta_id}")
-                        .route(web::put().to_async(osm_changeset_modify))
+                        .route(web::put().to(osm_changeset_modify))
                     )
                     .service(web::resource("changeset/{delta_id}/close")
                         .route(web::put().to(osm_changeset_close))
                     )
                     .service(web::resource("changeset/{delta_id}/upload")
-                        .route(web::post().to_async(osm_changeset_upload))
+                        .route(web::post().to(osm_changeset_upload))
                     )
                 )
                 .service(web::resource("auth")
                     .route(web::get().to(auth_get))
                 )
                 .service(web::resource("meta")
-                    .route(web::get().to_async(meta_list))
+                    .route(web::get().to(meta_list))
                 )
                 .service(web::resource("meta/{key}")
-                    .route(web::post().to_async(meta_set))
-                    .route(web::delete().to_async(meta_delete))
-                    .route(web::get().to_async(meta_get))
+                    .route(web::post().to(meta_set))
+                    .route(web::delete().to(meta_delete))
+                    .route(web::get().to(meta_get))
                 )
                 .service(web::scope("style")
                     .service(web::resource("")
-                        .route(web::post().to_async(style_create))
+                        .route(web::post().to(style_create))
                     )
                     .service(web::resource("{style_id}")
                         .route(web::delete().to(style_delete))
                         .route(web::get().to(style_get))
-                        .route(web::patch().to_async(style_patch))
+                        .route(web::patch().to(style_patch))
                     )
                     .service(web::resource("{style_id}/public")
                         .route(web::post().to(style_public))
@@ -179,10 +179,10 @@ pub fn start(
                     .route(web::get().to(schema_get))
                 )
                 .service(web::resource("deltas")
-                    .route(web::get().to_async(delta_list))
+                    .route(web::get().to(delta_list))
                 )
                 .service(web::resource("delta/{id}")
-                    .route(web::get().to_async(delta))
+                    .route(web::get().to(delta))
                 )
                 .service(web::scope("webhooks")
                     .service(web::resource("")
@@ -197,16 +197,16 @@ pub fn start(
                 )
                 .service(web::scope("tiles")
                     .service(web::resource("")
-                        .route(web::delete().to_async(mvt_wipe))
+                        .route(web::delete().to(mvt_wipe))
                     )
                     .service(web::resource("{z}/{x}/{y}")
-                        .route(web::get().to_async(mvt_get))
+                        .route(web::get().to(mvt_get))
                     )
                     .service(web::resource("{z}/{x}/{y}/meta")
-                        .route(web::get().to_async(mvt_meta))
+                        .route(web::get().to(mvt_meta))
                     )
                     .service(web::resource("{z}/{x}/{y}/regen")
-                        .route(web::get().to_async(mvt_regen))
+                        .route(web::get().to(mvt_regen))
                     )
                 )
                 .service(web::resource("users")
@@ -223,8 +223,8 @@ pub fn start(
                         .route(web::post().to(user_pwreset))
                     )
                     .service(web::resource("session")
-                        .route(web::get().to_async(user_create_session))
-                        .route(web::delete().to_async(user_delete_session))
+                        .route(web::get().to(user_create_session))
+                        .route(web::delete().to(user_delete_session))
                     )
                     .service(web::resource("tokens")
                         .route(web::get().to(user_tokens))
@@ -364,59 +364,50 @@ fn server(
     })))
 }
 
-fn meta_list(
+async fn meta_list(
     conn: web::Data<DbReplica>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
-    web::block(move || {
+) -> Result<serde_json::Value, HecateError> {
+    Ok(web::block(move || {
         auth::check(&auth_rules.0.meta.get, auth::RW::Read, &auth)?;
 
         Ok(serde_json::to_value(meta::list(&*conn.get()?)?).unwrap())
-    }).then(|res: Result<serde_json::Value, actix_threadpool::BlockingError<HecateError>>| match res {
-        Ok(list) => Ok(actix_web::HttpResponse::Ok().json(list)),
-        Err(err) => Ok(HecateError::from(err).error_response())
-    })
+    }).await?)
 }
 
 
-fn meta_get(
+async fn meta_get(
     conn: web::Data<DbReplica>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     worker: web::Data<worker::Worker>,
     key: web::Path<String>
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
-    web::block(move || {
+) -> Result<serde_json::Value, HecateError> {
+    Ok(web::block(move || {
         auth::check(&auth_rules.0.meta.get, auth::RW::Read, &auth)?;
 
         worker.queue(worker::Task::new(worker::TaskType::Meta));
 
         Ok(meta::Meta::get(&*conn.get()?, &key.into_inner())?.value)
-    }).then(|res: Result<serde_json::Value, actix_threadpool::BlockingError<HecateError>>| match res {
-        Ok(meta) => Ok(actix_web::HttpResponse::Ok().json(meta)),
-        Err(err) => Ok(HecateError::from(err).error_response())
-    })
+    }).await?)
 }
 
 
-fn meta_delete(
+async fn meta_delete(
     conn: web::Data<DbReadWrite>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     worker: web::Data<worker::Worker>,
     key: web::Path<String>
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
-    web::block(move || {
+) -> Result<serde_json::Value, HecateError> {
+    Ok(web::block(move || {
         auth::check(&auth_rules.0.meta.set, auth::RW::Full, &auth)?;
 
         worker.queue(worker::Task::new(worker::TaskType::Meta));
 
         Ok(json!(meta::Meta::delete(&*conn.get()?, &key.into_inner())?))
-    }).then(|res: Result<serde_json::Value, actix_threadpool::BlockingError<HecateError>>| match res {
-        Ok(meta) => Ok(actix_web::HttpResponse::Ok().json(meta)),
-        Err(err) => Ok(HecateError::from(err).error_response())
-    })
+    }).await?)
 }
 
 fn meta_set(
@@ -426,7 +417,7 @@ fn meta_set(
     worker: web::Data<worker::Worker>,
     value: Json<serde_json::Value>,
     key: web::Path<String>
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
+) -> impl Future<Result<HttpResponse, HecateError>> {
     web::block(move || {
         auth::check(&auth_rules.0.meta.set, auth::RW::Full, &auth)?;
 
@@ -448,7 +439,7 @@ fn mvt_get(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     path: web::Path<(u8, u32, u32)>
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
+) -> impl Future<Result<HttpResponse, HecateError>> {
     web::block(move || {
         auth::check(&auth_rules.0.mvt.get, auth::RW::Read, &auth)?;
 
@@ -476,7 +467,7 @@ fn mvt_meta(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     path: web::Path<(u8, u32, u32)>
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
+) -> impl Future<Result<HttpResponse, HecateError>> {
     web::block(move || {
         auth::check(&auth_rules.0.mvt.meta, auth::RW::Read, &auth)?;
 
@@ -497,7 +488,7 @@ fn mvt_wipe(
     conn: web::Data<DbReadWrite>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
+) -> impl Future<Result<HttpResponse, HecateError>> {
     web::block(move || {
         auth::check(&auth_rules.0.mvt.delete, auth::RW::Full, &auth)?;
 
@@ -514,7 +505,7 @@ fn mvt_regen(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     path: web::Path<(u8, u32, u32)>
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
+) -> impl Future<Result<HttpResponse, HecateError>> {
     web::block(move || {
         auth::check(&auth_rules.0.mvt.regen, auth::RW::Full, &auth)?;
 
@@ -587,7 +578,7 @@ fn user_modify_info(
     auth_rules: web::Data<auth::AuthContainer>,
     uid: web::Path<i64>,
     body: web::Payload
-) -> impl Future<Item = Json<serde_json::Value>, Error = HecateError> {
+) -> impl Future<Result<Json<serde_json::Value>, HecateError>> {
     if let Err(err) = auth_rules.0.is_admin(&auth) {
         return Either::A(futures::future::err(err));
     }
@@ -699,7 +690,7 @@ fn user_create_session(
     conn: web::Data<DbReadWrite>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
+) -> impl Future<Result<HttpResponse, HecateError>> {
     web::block(move || {
         auth::check(&auth_rules.0.user.create_session, auth::RW::Full, &auth)?;
 
@@ -728,7 +719,7 @@ fn user_delete_session(
     conn: web::Data<DbReadWrite>,
     auth: auth::Auth,
     req: HttpRequest
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
+) -> impl Future<Result<HttpResponse, HecateError>> {
     let token = match req.cookie("session") {
         Some(session) => Some(String::from(session.value())),
         None => None
@@ -808,7 +799,7 @@ fn user_token_create(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     body: web::Payload
-) -> impl Future<Item = Json<serde_json::Value>, Error = HecateError> {
+) -> impl Future<Result<Json<serde_json::Value>, HecateError>> {
     if let Err(err) = auth::check(&auth_rules.0.user.create_session, auth::RW::Full, &auth) {
         return Either::A(futures::future::err(err));
     }
@@ -881,7 +872,7 @@ fn style_create(
     auth_rules: web::Data<auth::AuthContainer>,
     worker: web::Data<worker::Worker>,
     body: web::Payload
-) -> impl Future<Item = Json<serde_json::Value>, Error = HecateError> {
+) -> impl Future<Result<Json<serde_json::Value>,HecateError>> {
     let conn = match conn.get() {
         Ok(conn) => conn,
         Err(err) => { return Either::A(futures::future::err(err)); }
@@ -944,7 +935,7 @@ fn style_patch(
     worker: web::Data<worker::Worker>,
     style_id: web::Path<i64>,
     body: web::Payload
-) -> impl Future<Item = Json<serde_json::Value>, Error = HecateError> {
+) -> impl Future<Result<Json<serde_json::Value>, HecateError>> {
     let conn = match conn.get() {
         Ok(conn) => conn,
         Err(err) => { return Either::A(futures::future::err(err)); }
@@ -1042,7 +1033,7 @@ fn delta_list(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     opts: web::Query<DeltaList>
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
+) -> impl Future<Result<HttpResponse, HecateError>> {
     web::block(move || {
         auth::check(&auth_rules.0.delta.list, auth::RW::Read, &auth)?;
 
@@ -1088,7 +1079,7 @@ fn delta(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     id: web::Path<i64>
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
+) -> impl Future<Result<HttpResponse, HecateError>> {
     web::block(move || {
         auth::check(&auth_rules.0.delta.get, auth::RW::Read, &auth)?;
 
@@ -1105,7 +1096,7 @@ fn bounds(
     auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     filter: web::Query<Filter>
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
+) -> impl Future<Result<HttpResponse, HecateError>> {
     web::block(move || {
         auth::check(&auth_rules.0.bounds.list, auth::RW::Read, &auth)?;
 
@@ -1138,7 +1129,7 @@ fn bounds_set(
     auth_rules: web::Data<auth::AuthContainer>,
     bounds: web::Path<String>,
     body: web::Payload
-) -> impl Future<Item = Json<serde_json::Value>, Error = HecateError> {
+) -> impl Future<Result<Json<serde_json::Value>, HecateError>> {
     if let Err(err) = auth::check(&auth_rules.0.bounds.create, auth::RW::Full, &auth) {
         return Either::A(futures::future::err(err));
     };
@@ -1172,7 +1163,7 @@ fn bounds_delete(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     bounds: web::Path<String>
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
+) -> impl Future<Result<HttpResponse, HecateError>> {
     web::block(move || {
         auth::check(&auth_rules.0.bounds.delete, auth::RW::Full, &auth)?;
 
@@ -1252,7 +1243,7 @@ fn bounds_stats(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     bound: web::Path<String>
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
+) -> impl Future<Result<HttpResponse, HecateError>> {
     web::block(move || {
         auth::check(&auth_rules.0.stats.get, auth::RW::Read, &auth)?;
 
@@ -1268,7 +1259,7 @@ fn bounds_meta(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     bound: web::Path<String>
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
+) -> impl Future<Result<HttpResponse, HecateError>> {
     web::block(move || {
         auth::check(&auth_rules.0.bounds.get, auth::RW::Read, &auth)?;
 
@@ -1374,7 +1365,7 @@ fn stats_get(
     conn: web::Data<DbReplica>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
+) -> impl Future<Result<HttpResponse, HecateError>> {
     web::block(move || {
         auth::check(&auth_rules.0.stats.get, auth::RW::Read, &auth)?;
 
@@ -1389,7 +1380,7 @@ fn stats_regen(
     conn: web::Data<DbReadWrite>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
+) -> impl Future<Result<HttpResponse, HecateError>> {
     web::block(move || {
         auth::check(&auth_rules.0.stats.get, auth::RW::Read, &auth)?;
 
@@ -1407,7 +1398,7 @@ fn features_action(
     worker: web::Data<worker::Worker>,
     schema: web::Data<Option<serde_json::value::Value>>,
     body: web::Payload
-) -> impl Future<Item = Json<serde_json::Value>, Error = HecateError> {
+) -> impl Future<Result<Json<serde_json::Value>, HecateError>> {
     let conn = match conn.get() {
         Ok(conn) => conn,
         Err(err) => { return Either::A(futures::future::err(err)); }
@@ -1541,7 +1532,7 @@ fn osm_changeset_create(
     auth_rules: web::Data<auth::AuthContainer>,
     conn: web::Data<DbReadWrite>,
     body: web::Payload
-) -> impl Future<Item = String, Error = HecateError> {
+) -> impl Future<Result<String, HecateError>> {
     let conn = match conn.get() {
         Ok(conn) => conn,
         Err(err) => { return Either::A(futures::future::err(err)); }
@@ -1605,7 +1596,7 @@ fn osm_changeset_modify(
     conn: web::Data<DbReadWrite>,
     delta_id: web::Path<i64>,
     body: web::Payload
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
+) -> impl Future<Result<HttpResponse, HecateError>> {
     let conn = match conn.get() {
         Ok(conn) => conn,
         Err(err) => { return Either::A(futures::future::err(err)); }
@@ -1685,7 +1676,7 @@ fn osm_changeset_upload(
     worker: web::Data<worker::Worker>,
     delta_id: web::Path<i64>,
     body: web::Payload
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
+) -> impl Future<Result<HttpResponse, HecateError>> {
     let conn = match conn.get() {
         Ok(conn) => conn,
         Err(err) => { return Either::A(futures::future::err(err)); }
@@ -1844,7 +1835,7 @@ fn feature_action(
     schema: web::Data<Option<serde_json::value::Value>>,
     worker: web::Data<worker::Worker>,
     body: web::Payload
-) -> impl Future<Item = Json<serde_json::Value>, Error = HecateError> {
+) -> impl Future<Result<Json<serde_json::Value>, HecateError>> {
     let conn = match conn.get() {
         Ok(conn) => conn,
         Err(err) => { return Either::A(futures::future::err(err)); }
@@ -1954,7 +1945,7 @@ fn feature_get(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     id: web::Path<i64>
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
+) -> impl Future<Result<HttpResponse, HecateError>> {
     web::block(move || {
         auth::check(&auth_rules.0.feature.get, auth::RW::Read, &auth)?;
 
@@ -1978,7 +1969,7 @@ fn feature_get_history(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     id: web::Path<i64>
-) -> impl Future<Item = HttpResponse, Error = HecateError> {
+) -> impl Future<Result<HttpResponse, HecateError>> {
     web::block(move || {
         auth::check(&auth_rules.0.feature.history, auth::RW::Read, &auth)?;
 
