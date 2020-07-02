@@ -1072,7 +1072,7 @@ dependencies = [
 
 [[package]]
 name = "hecate"
-version = "0.86.4"
+version = "0.87.0"
 dependencies = [
  "actix-files 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "actix-http 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",

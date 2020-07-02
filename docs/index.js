@@ -86,6 +86,1185 @@
 /************************************************************************/
 /******/ ({
 
+/***/ "../../home/undefined/.config/yarn/global/node_modules/snowboard-theme-winter/node_modules/prismjs/prism.js":
+/*!*************************************************************************************************************!*\
+  !*** /home/undefined/.config/yarn/global/node_modules/snowboard-theme-winter/node_modules/prismjs/prism.js ***!
+  \*************************************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/* WEBPACK VAR INJECTION */(function(global) {
+/* **********************************************
+     Begin prism-core.js
+********************************************** */
+
+var _self = (typeof window !== 'undefined')
+	? window   // if in browser
+	: (
+		(typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope)
+		? self // if in worker
+		: {}   // if in node js
+	);
+
+/**
+ * Prism: Lightweight, robust, elegant syntax highlighting
+ * MIT license http://www.opensource.org/licenses/mit-license.php/
+ * @author Lea Verou http://lea.verou.me
+ */
+
+var Prism = (function (_self){
+
+// Private helper vars
+var lang = /\blang(?:uage)?-([\w-]+)\b/i;
+var uniqueId = 0;
+
+
+var _ = {
+	manual: _self.Prism && _self.Prism.manual,
+	disableWorkerMessageHandler: _self.Prism && _self.Prism.disableWorkerMessageHandler,
+	util: {
+		encode: function encode(tokens) {
+			if (tokens instanceof Token) {
+				return new Token(tokens.type, encode(tokens.content), tokens.alias);
+			} else if (Array.isArray(tokens)) {
+				return tokens.map(encode);
+			} else {
+				return tokens.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\u00a0/g, ' ');
+			}
+		},
+
+		type: function (o) {
+			return Object.prototype.toString.call(o).slice(8, -1);
+		},
+
+		objId: function (obj) {
+			if (!obj['__id']) {
+				Object.defineProperty(obj, '__id', { value: ++uniqueId });
+			}
+			return obj['__id'];
+		},
+
+		// Deep clone a language definition (e.g. to extend it)
+		clone: function deepClone(o, visited) {
+			var clone, id, type = _.util.type(o);
+			visited = visited || {};
+
+			switch (type) {
+				case 'Object':
+					id = _.util.objId(o);
+					if (visited[id]) {
+						return visited[id];
+					}
+					clone = {};
+					visited[id] = clone;
+
+					for (var key in o) {
+						if (o.hasOwnProperty(key)) {
+							clone[key] = deepClone(o[key], visited);
+						}
+					}
+
+					return clone;
+
+				case 'Array':
+					id = _.util.objId(o);
+					if (visited[id]) {
+						return visited[id];
+					}
+					clone = [];
+					visited[id] = clone;
+
+					o.forEach(function (v, i) {
+						clone[i] = deepClone(v, visited);
+					});
+
+					return clone;
+
+				default:
+					return o;
+			}
+		},
+
+		/**
+		 * Returns the Prism language of the given element set by a `language-xxxx` or `lang-xxxx` class.
+		 *
+		 * If no language is set for the element or the element is `null` or `undefined`, `none` will be returned.
+		 *
+		 * @param {Element} element
+		 * @returns {string}
+		 */
+		getLanguage: function (element) {
+			while (element && !lang.test(element.className)) {
+				element = element.parentElement;
+			}
+			if (element) {
+				return (element.className.match(lang) || [, 'none'])[1].toLowerCase();
+			}
+			return 'none';
+		},
+
+		/**
+		 * Returns the script element that is currently executing.
+		 *
+		 * This does __not__ work for line script element.
+		 *
+		 * @returns {HTMLScriptElement | null}
+		 */
+		currentScript: function () {
+			if (typeof document === 'undefined') {
+				return null;
+			}
+			if ('currentScript' in document) {
+				return document.currentScript;
+			}
+
+			// IE11 workaround
+			// we'll get the src of the current script by parsing IE11's error stack trace
+			// this will not work for inline scripts
+
+			try {
+				throw new Error();
+			} catch (err) {
+				// Get file src url from stack. Specifically works with the format of stack traces in IE.
+				// A stack will look like this:
+				//
+				// Error
+				//    at _.util.currentScript (http://localhost/components/prism-core.js:119:5)
+				//    at Global code (http://localhost/components/prism-core.js:606:1)
+
+				var src = (/at [^(\r\n]*\((.*):.+:.+\)$/i.exec(err.stack) || [])[1];
+				if (src) {
+					var scripts = document.getElementsByTagName('script');
+					for (var i in scripts) {
+						if (scripts[i].src == src) {
+							return scripts[i];
+						}
+					}
+				}
+				return null;
+			}
+		}
+	},
+
+	languages: {
+		extend: function (id, redef) {
+			var lang = _.util.clone(_.languages[id]);
+
+			for (var key in redef) {
+				lang[key] = redef[key];
+			}
+
+			return lang;
+		},
+
+		/**
+		 * Insert a token before another token in a language literal
+		 * As this needs to recreate the object (we cannot actually insert before keys in object literals),
+		 * we cannot just provide an object, we need an object and a key.
+		 * @param inside The key (or language id) of the parent
+		 * @param before The key to insert before.
+		 * @param insert Object with the key/value pairs to insert
+		 * @param root The object that contains `inside`. If equal to Prism.languages, it can be omitted.
+		 */
+		insertBefore: function (inside, before, insert, root) {
+			root = root || _.languages;
+			var grammar = root[inside];
+			var ret = {};
+
+			for (var token in grammar) {
+				if (grammar.hasOwnProperty(token)) {
+
+					if (token == before) {
+						for (var newToken in insert) {
+							if (insert.hasOwnProperty(newToken)) {
+								ret[newToken] = insert[newToken];
+							}
+						}
+					}
+
+					// Do not insert token which also occur in insert. See #1525
+					if (!insert.hasOwnProperty(token)) {
+						ret[token] = grammar[token];
+					}
+				}
+			}
+
+			var old = root[inside];
+			root[inside] = ret;
+
+			// Update references in other language definitions
+			_.languages.DFS(_.languages, function(key, value) {
+				if (value === old && key != inside) {
+					this[key] = ret;
+				}
+			});
+
+			return ret;
+		},
+
+		// Traverse a language definition with Depth First Search
+		DFS: function DFS(o, callback, type, visited) {
+			visited = visited || {};
+
+			var objId = _.util.objId;
+
+			for (var i in o) {
+				if (o.hasOwnProperty(i)) {
+					callback.call(o, i, o[i], type || i);
+
+					var property = o[i],
+					    propertyType = _.util.type(property);
+
+					if (propertyType === 'Object' && !visited[objId(property)]) {
+						visited[objId(property)] = true;
+						DFS(property, callback, null, visited);
+					}
+					else if (propertyType === 'Array' && !visited[objId(property)]) {
+						visited[objId(property)] = true;
+						DFS(property, callback, i, visited);
+					}
+				}
+			}
+		}
+	},
+	plugins: {},
+
+	highlightAll: function(async, callback) {
+		_.highlightAllUnder(document, async, callback);
+	},
+
+	highlightAllUnder: function(container, async, callback) {
+		var env = {
+			callback: callback,
+			container: container,
+			selector: 'code[class*="language-"], [class*="language-"] code, code[class*="lang-"], [class*="lang-"] code'
+		};
+
+		_.hooks.run('before-highlightall', env);
+
+		env.elements = Array.prototype.slice.apply(env.container.querySelectorAll(env.selector));
+
+		_.hooks.run('before-all-elements-highlight', env);
+
+		for (var i = 0, element; element = env.elements[i++];) {
+			_.highlightElement(element, async === true, env.callback);
+		}
+	},
+
+	highlightElement: function(element, async, callback) {
+		// Find language
+		var language = _.util.getLanguage(element);
+		var grammar = _.languages[language];
+
+		// Set language on the element, if not present
+		element.className = element.className.replace(lang, '').replace(/\s+/g, ' ') + ' language-' + language;
+
+		// Set language on the parent, for styling
+		var parent = element.parentNode;
+		if (parent && parent.nodeName.toLowerCase() === 'pre') {
+			parent.className = parent.className.replace(lang, '').replace(/\s+/g, ' ') + ' language-' + language;
+		}
+
+		var code = element.textContent;
+
+		var env = {
+			element: element,
+			language: language,
+			grammar: grammar,
+			code: code
+		};
+
+		function insertHighlightedCode(highlightedCode) {
+			env.highlightedCode = highlightedCode;
+
+			_.hooks.run('before-insert', env);
+
+			env.element.innerHTML = env.highlightedCode;
+
+			_.hooks.run('after-highlight', env);
+			_.hooks.run('complete', env);
+			callback && callback.call(env.element);
+		}
+
+		_.hooks.run('before-sanity-check', env);
+
+		if (!env.code) {
+			_.hooks.run('complete', env);
+			callback && callback.call(env.element);
+			return;
+		}
+
+		_.hooks.run('before-highlight', env);
+
+		if (!env.grammar) {
+			insertHighlightedCode(_.util.encode(env.code));
+			return;
+		}
+
+		if (async && _self.Worker) {
+			var worker = new Worker(_.filename);
+
+			worker.onmessage = function(evt) {
+				insertHighlightedCode(evt.data);
+			};
+
+			worker.postMessage(JSON.stringify({
+				language: env.language,
+				code: env.code,
+				immediateClose: true
+			}));
+		}
+		else {
+			insertHighlightedCode(_.highlight(env.code, env.grammar, env.language));
+		}
+	},
+
+	highlight: function (text, grammar, language) {
+		var env = {
+			code: text,
+			grammar: grammar,
+			language: language
+		};
+		_.hooks.run('before-tokenize', env);
+		env.tokens = _.tokenize(env.code, env.grammar);
+		_.hooks.run('after-tokenize', env);
+		return Token.stringify(_.util.encode(env.tokens), env.language);
+	},
+
+	tokenize: function(text, grammar) {
+		var rest = grammar.rest;
+		if (rest) {
+			for (var token in rest) {
+				grammar[token] = rest[token];
+			}
+
+			delete grammar.rest;
+		}
+
+		var tokenList = new LinkedList();
+		addAfter(tokenList, tokenList.head, text);
+
+		matchGrammar(text, tokenList, grammar, tokenList.head, 0);
+
+		return toArray(tokenList);
+	},
+
+	hooks: {
+		all: {},
+
+		add: function (name, callback) {
+			var hooks = _.hooks.all;
+
+			hooks[name] = hooks[name] || [];
+
+			hooks[name].push(callback);
+		},
+
+		run: function (name, env) {
+			var callbacks = _.hooks.all[name];
+
+			if (!callbacks || !callbacks.length) {
+				return;
+			}
+
+			for (var i=0, callback; callback = callbacks[i++];) {
+				callback(env);
+			}
+		}
+	},
+
+	Token: Token
+};
+
+_self.Prism = _;
+
+function Token(type, content, alias, matchedStr, greedy) {
+	this.type = type;
+	this.content = content;
+	this.alias = alias;
+	// Copy of the full string this token was created from
+	this.length = (matchedStr || '').length|0;
+	this.greedy = !!greedy;
+}
+
+Token.stringify = function stringify(o, language) {
+	if (typeof o == 'string') {
+		return o;
+	}
+	if (Array.isArray(o)) {
+		var s = '';
+		o.forEach(function (e) {
+			s += stringify(e, language);
+		});
+		return s;
+	}
+
+	var env = {
+		type: o.type,
+		content: stringify(o.content, language),
+		tag: 'span',
+		classes: ['token', o.type],
+		attributes: {},
+		language: language
+	};
+
+	var aliases = o.alias;
+	if (aliases) {
+		if (Array.isArray(aliases)) {
+			Array.prototype.push.apply(env.classes, aliases);
+		} else {
+			env.classes.push(aliases);
+		}
+	}
+
+	_.hooks.run('wrap', env);
+
+	var attributes = '';
+	for (var name in env.attributes) {
+		attributes += ' ' + name + '="' + (env.attributes[name] || '').replace(/"/g, '&quot;') + '"';
+	}
+
+	return '<' + env.tag + ' class="' + env.classes.join(' ') + '"' + attributes + '>' + env.content + '</' + env.tag + '>';
+};
+
+/**
+ * @param {string} text
+ * @param {LinkedList<string | Token>} tokenList
+ * @param {any} grammar
+ * @param {LinkedListNode<string | Token>} startNode
+ * @param {number} startPos
+ * @param {boolean} [oneshot=false]
+ * @param {string} [target]
+ */
+function matchGrammar(text, tokenList, grammar, startNode, startPos, oneshot, target) {
+	for (var token in grammar) {
+		if (!grammar.hasOwnProperty(token) || !grammar[token]) {
+			continue;
+		}
+
+		var patterns = grammar[token];
+		patterns = Array.isArray(patterns) ? patterns : [patterns];
+
+		for (var j = 0; j < patterns.length; ++j) {
+			if (target && target == token + ',' + j) {
+				return;
+			}
+
+			var pattern = patterns[j],
+				inside = pattern.inside,
+				lookbehind = !!pattern.lookbehind,
+				greedy = !!pattern.greedy,
+				lookbehindLength = 0,
+				alias = pattern.alias;
+
+			if (greedy && !pattern.pattern.global) {
+				// Without the global flag, lastIndex won't work
+				var flags = pattern.pattern.toString().match(/[imsuy]*$/)[0];
+				pattern.pattern = RegExp(pattern.pattern.source, flags + 'g');
+			}
+
+			pattern = pattern.pattern || pattern;
+
+			for ( // iterate the token list and keep track of the current token/string position
+				var currentNode = startNode.next, pos = startPos;
+				currentNode !== tokenList.tail;
+				pos += currentNode.value.length, currentNode = currentNode.next
+			) {
+
+				var str = currentNode.value;
+
+				if (tokenList.length > text.length) {
+					// Something went terribly wrong, ABORT, ABORT!
+					return;
+				}
+
+				if (str instanceof Token) {
+					continue;
+				}
+
+				var removeCount = 1; // this is the to parameter of removeBetween
+
+				if (greedy && currentNode != tokenList.tail.prev) {
+					pattern.lastIndex = pos;
+					var match = pattern.exec(text);
+					if (!match) {
+						break;
+					}
+
+					var from = match.index + (lookbehind && match[1] ? match[1].length : 0);
+					var to = match.index + match[0].length;
+					var p = pos;
+
+					// find the node that contains the match
+					p += currentNode.value.length;
+					while (from >= p) {
+						currentNode = currentNode.next;
+						p += currentNode.value.length;
+					}
+					// adjust pos (and p)
+					p -= currentNode.value.length;
+					pos = p;
+
+					// the current node is a Token, then the match starts inside another Token, which is invalid
+					if (currentNode.value instanceof Token) {
+						continue;
+					}
+
+					// find the last node which is affected by this match
+					for (
+						var k = currentNode;
+						k !== tokenList.tail && (p < to || (typeof k.value === 'string' && !k.prev.value.greedy));
+						k = k.next
+					) {
+						removeCount++;
+						p += k.value.length;
+					}
+					removeCount--;
+
+					// replace with the new match
+					str = text.slice(pos, p);
+					match.index -= pos;
+				} else {
+					pattern.lastIndex = 0;
+
+					var match = pattern.exec(str);
+				}
+
+				if (!match) {
+					if (oneshot) {
+						break;
+					}
+
+					continue;
+				}
+
+				if (lookbehind) {
+					lookbehindLength = match[1] ? match[1].length : 0;
+				}
+
+				var from = match.index + lookbehindLength,
+					match = match[0].slice(lookbehindLength),
+					to = from + match.length,
+					before = str.slice(0, from),
+					after = str.slice(to);
+
+				var removeFrom = currentNode.prev;
+
+				if (before) {
+					removeFrom = addAfter(tokenList, removeFrom, before);
+					pos += before.length;
+				}
+
+				removeRange(tokenList, removeFrom, removeCount);
+
+				var wrapped = new Token(token, inside ? _.tokenize(match, inside) : match, alias, match, greedy);
+				currentNode = addAfter(tokenList, removeFrom, wrapped);
+
+				if (after) {
+					addAfter(tokenList, currentNode, after);
+				}
+
+
+				if (removeCount > 1)
+					matchGrammar(text, tokenList, grammar, currentNode.prev, pos, true, token + ',' + j);
+
+				if (oneshot)
+					break;
+			}
+		}
+	}
+}
+
+/**
+ * @typedef LinkedListNode
+ * @property {T} value
+ * @property {LinkedListNode<T> | null} prev The previous node.
+ * @property {LinkedListNode<T> | null} next The next node.
+ * @template T
+ */
+
+/**
+ * @template T
+ */
+function LinkedList() {
+	/** @type {LinkedListNode<T>} */
+	var head = { value: null, prev: null, next: null };
+	/** @type {LinkedListNode<T>} */
+	var tail = { value: null, prev: head, next: null };
+	head.next = tail;
+
+	/** @type {LinkedListNode<T>} */
+	this.head = head;
+	/** @type {LinkedListNode<T>} */
+	this.tail = tail;
+	this.length = 0;
+}
+
+/**
+ * Adds a new node with the given value to the list.
+ * @param {LinkedList<T>} list
+ * @param {LinkedListNode<T>} node
+ * @param {T} value
+ * @returns {LinkedListNode<T>} The added node.
+ * @template T
+ */
+function addAfter(list, node, value) {
+	// assumes that node != list.tail && values.length >= 0
+	var next = node.next;
+
+	var newNode = { value: value, prev: node, next: next };
+	node.next = newNode;
+	next.prev = newNode;
+	list.length++;
+
+	return newNode;
+}
+/**
+ * Removes `count` nodes after the given node. The given node will not be removed.
+ * @param {LinkedList<T>} list
+ * @param {LinkedListNode<T>} node
+ * @param {number} count
+ * @template T
+ */
+function removeRange(list, node, count) {
+	var next = node.next;
+	for (var i = 0; i < count && next !== list.tail; i++) {
+		next = next.next;
+	}
+	node.next = next;
+	next.prev = node;
+	list.length -= i;
+}
+/**
+ * @param {LinkedList<T>} list
+ * @returns {T[]}
+ * @template T
+ */
+function toArray(list) {
+	var array = [];
+	var node = list.head.next;
+	while (node !== list.tail) {
+		array.push(node.value);
+		node = node.next;
+	}
+	return array;
+}
+
+
+if (!_self.document) {
+	if (!_self.addEventListener) {
+		// in Node.js
+		return _;
+	}
+
+	if (!_.disableWorkerMessageHandler) {
+		// In worker
+		_self.addEventListener('message', function (evt) {
+			var message = JSON.parse(evt.data),
+				lang = message.language,
+				code = message.code,
+				immediateClose = message.immediateClose;
+
+			_self.postMessage(_.highlight(code, _.languages[lang], lang));
+			if (immediateClose) {
+				_self.close();
+			}
+		}, false);
+	}
+
+	return _;
+}
+
+//Get current script and highlight
+var script = _.util.currentScript();
+
+if (script) {
+	_.filename = script.src;
+
+	if (script.hasAttribute('data-manual')) {
+		_.manual = true;
+	}
+}
+
+function highlightAutomaticallyCallback() {
+	if (!_.manual) {
+		_.highlightAll();
+	}
+}
+
+if (!_.manual) {
+	// If the document state is "loading", then we'll use DOMContentLoaded.
+	// If the document state is "interactive" and the prism.js script is deferred, then we'll also use the
+	// DOMContentLoaded event because there might be some plugins or languages which have also been deferred and they
+	// might take longer one animation frame to execute which can create a race condition where only some plugins have
+	// been loaded when Prism.highlightAll() is executed, depending on how fast resources are loaded.
+	// See https://github.com/PrismJS/prism/issues/2102
+	var readyState = document.readyState;
+	if (readyState === 'loading' || readyState === 'interactive' && script && script.defer) {
+		document.addEventListener('DOMContentLoaded', highlightAutomaticallyCallback);
+	} else {
+		if (window.requestAnimationFrame) {
+			window.requestAnimationFrame(highlightAutomaticallyCallback);
+		} else {
+			window.setTimeout(highlightAutomaticallyCallback, 16);
+		}
+	}
+}
+
+return _;
+
+})(_self);
+
+if ( true && module.exports) {
+	module.exports = Prism;
+}
+
+// hack for components to work correctly in node.js
+if (typeof global !== 'undefined') {
+	global.Prism = Prism;
+}
+
+
+/* **********************************************
+     Begin prism-markup.js
+********************************************** */
+
+Prism.languages.markup = {
+	'comment': /<!--[\s\S]*?-->/,
+	'prolog': /<\?[\s\S]+?\?>/,
+	'doctype': {
+		pattern: /<!DOCTYPE(?:[^>"'[\]]|"[^"]*"|'[^']*')+(?:\[(?:(?!<!--)[^"'\]]|"[^"]*"|'[^']*'|<!--[\s\S]*?-->)*\]\s*)?>/i,
+		greedy: true
+	},
+	'cdata': /<!\[CDATA\[[\s\S]*?]]>/i,
+	'tag': {
+		pattern: /<\/?(?!\d)[^\s>\/=$<%]+(?:\s(?:\s*[^\s>\/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s'">=]+(?=[\s>]))|(?=[\s/>])))+)?\s*\/?>/i,
+		greedy: true,
+		inside: {
+			'tag': {
+				pattern: /^<\/?[^\s>\/]+/i,
+				inside: {
+					'punctuation': /^<\/?/,
+					'namespace': /^[^\s>\/:]+:/
+				}
+			},
+			'attr-value': {
+				pattern: /=\s*(?:"[^"]*"|'[^']*'|[^\s'">=]+)/i,
+				inside: {
+					'punctuation': [
+						/^=/,
+						{
+							pattern: /^(\s*)["']|["']$/,
+							lookbehind: true
+						}
+					]
+				}
+			},
+			'punctuation': /\/?>/,
+			'attr-name': {
+				pattern: /[^\s>\/]+/,
+				inside: {
+					'namespace': /^[^\s>\/:]+:/
+				}
+			}
+
+		}
+	},
+	'entity': /&#?[\da-z]{1,8};/i
+};
+
+Prism.languages.markup['tag'].inside['attr-value'].inside['entity'] =
+	Prism.languages.markup['entity'];
+
+// Plugin to make entity title show the real entity, idea by Roman Komarov
+Prism.hooks.add('wrap', function(env) {
+
+	if (env.type === 'entity') {
+		env.attributes['title'] = env.content.replace(/&amp;/, '&');
+	}
+});
+
+Object.defineProperty(Prism.languages.markup.tag, 'addInlined', {
+	/**
+	 * Adds an inlined language to markup.
+	 *
+	 * An example of an inlined language is CSS with `<style>` tags.
+	 *
+	 * @param {string} tagName The name of the tag that contains the inlined language. This name will be treated as
+	 * case insensitive.
+	 * @param {string} lang The language key.
+	 * @example
+	 * addInlined('style', 'css');
+	 */
+	value: function addInlined(tagName, lang) {
+		var includedCdataInside = {};
+		includedCdataInside['language-' + lang] = {
+			pattern: /(^<!\[CDATA\[)[\s\S]+?(?=\]\]>$)/i,
+			lookbehind: true,
+			inside: Prism.languages[lang]
+		};
+		includedCdataInside['cdata'] = /^<!\[CDATA\[|\]\]>$/i;
+
+		var inside = {
+			'included-cdata': {
+				pattern: /<!\[CDATA\[[\s\S]*?\]\]>/i,
+				inside: includedCdataInside
+			}
+		};
+		inside['language-' + lang] = {
+			pattern: /[\s\S]+/,
+			inside: Prism.languages[lang]
+		};
+
+		var def = {};
+		def[tagName] = {
+			pattern: RegExp(/(<__[\s\S]*?>)(?:<!\[CDATA\[[\s\S]*?\]\]>\s*|[\s\S])*?(?=<\/__>)/.source.replace(/__/g, function () { return tagName; }), 'i'),
+			lookbehind: true,
+			greedy: true,
+			inside: inside
+		};
+
+		Prism.languages.insertBefore('markup', 'cdata', def);
+	}
+});
+
+Prism.languages.xml = Prism.languages.extend('markup', {});
+Prism.languages.html = Prism.languages.markup;
+Prism.languages.mathml = Prism.languages.markup;
+Prism.languages.svg = Prism.languages.markup;
+
+
+/* **********************************************
+     Begin prism-css.js
+********************************************** */
+
+(function (Prism) {
+
+	var string = /("|')(?:\\(?:\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1/;
+
+	Prism.languages.css = {
+		'comment': /\/\*[\s\S]*?\*\//,
+		'atrule': {
+			pattern: /@[\w-]+[\s\S]*?(?:;|(?=\s*\{))/,
+			inside: {
+				'rule': /^@[\w-]+/,
+				'selector-function-argument': {
+					pattern: /(\bselector\s*\((?!\s*\))\s*)(?:[^()]|\((?:[^()]|\([^()]*\))*\))+?(?=\s*\))/,
+					lookbehind: true,
+					alias: 'selector'
+				}
+				// See rest below
+			}
+		},
+		'url': {
+			pattern: RegExp('url\\((?:' + string.source + '|[^\n\r()]*)\\)', 'i'),
+			greedy: true,
+			inside: {
+				'function': /^url/i,
+				'punctuation': /^\(|\)$/
+			}
+		},
+		'selector': RegExp('[^{}\\s](?:[^{};"\']|' + string.source + ')*?(?=\\s*\\{)'),
+		'string': {
+			pattern: string,
+			greedy: true
+		},
+		'property': /[-_a-z\xA0-\uFFFF][-\w\xA0-\uFFFF]*(?=\s*:)/i,
+		'important': /!important\b/i,
+		'function': /[-a-z0-9]+(?=\()/i,
+		'punctuation': /[(){};:,]/
+	};
+
+	Prism.languages.css['atrule'].inside.rest = Prism.languages.css;
+
+	var markup = Prism.languages.markup;
+	if (markup) {
+		markup.tag.addInlined('style', 'css');
+
+		Prism.languages.insertBefore('inside', 'attr-value', {
+			'style-attr': {
+				pattern: /\s*style=("|')(?:\\[\s\S]|(?!\1)[^\\])*\1/i,
+				inside: {
+					'attr-name': {
+						pattern: /^\s*style/i,
+						inside: markup.tag.inside
+					},
+					'punctuation': /^\s*=\s*['"]|['"]\s*$/,
+					'attr-value': {
+						pattern: /.+/i,
+						inside: Prism.languages.css
+					}
+				},
+				alias: 'language-css'
+			}
+		}, markup.tag);
+	}
+
+}(Prism));
+
+
+/* **********************************************
+     Begin prism-clike.js
+********************************************** */
+
+Prism.languages.clike = {
+	'comment': [
+		{
+			pattern: /(^|[^\\])\/\*[\s\S]*?(?:\*\/|$)/,
+			lookbehind: true
+		},
+		{
+			pattern: /(^|[^\\:])\/\/.*/,
+			lookbehind: true,
+			greedy: true
+		}
+	],
+	'string': {
+		pattern: /(["'])(?:\\(?:\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1/,
+		greedy: true
+	},
+	'class-name': {
+		pattern: /(\b(?:class|interface|extends|implements|trait|instanceof|new)\s+|\bcatch\s+\()[\w.\\]+/i,
+		lookbehind: true,
+		inside: {
+			'punctuation': /[.\\]/
+		}
+	},
+	'keyword': /\b(?:if|else|while|do|for|return|in|instanceof|function|new|try|throw|catch|finally|null|break|continue)\b/,
+	'boolean': /\b(?:true|false)\b/,
+	'function': /\w+(?=\()/,
+	'number': /\b0x[\da-f]+\b|(?:\b\d+\.?\d*|\B\.\d+)(?:e[+-]?\d+)?/i,
+	'operator': /[<>]=?|[!=]=?=?|--?|\+\+?|&&?|\|\|?|[?*/~^%]/,
+	'punctuation': /[{}[\];(),.:]/
+};
+
+
+/* **********************************************
+     Begin prism-javascript.js
+********************************************** */
+
+Prism.languages.javascript = Prism.languages.extend('clike', {
+	'class-name': [
+		Prism.languages.clike['class-name'],
+		{
+			pattern: /(^|[^$\w\xA0-\uFFFF])[_$A-Z\xA0-\uFFFF][$\w\xA0-\uFFFF]*(?=\.(?:prototype|constructor))/,
+			lookbehind: true
+		}
+	],
+	'keyword': [
+		{
+			pattern: /((?:^|})\s*)(?:catch|finally)\b/,
+			lookbehind: true
+		},
+		{
+			pattern: /(^|[^.]|\.\.\.\s*)\b(?:as|async(?=\s*(?:function\b|\(|[$\w\xA0-\uFFFF]|$))|await|break|case|class|const|continue|debugger|default|delete|do|else|enum|export|extends|for|from|function|get|if|implements|import|in|instanceof|interface|let|new|null|of|package|private|protected|public|return|set|static|super|switch|this|throw|try|typeof|undefined|var|void|while|with|yield)\b/,
+			lookbehind: true
+		},
+	],
+	'number': /\b(?:(?:0[xX](?:[\dA-Fa-f](?:_[\dA-Fa-f])?)+|0[bB](?:[01](?:_[01])?)+|0[oO](?:[0-7](?:_[0-7])?)+)n?|(?:\d(?:_\d)?)+n|NaN|Infinity)\b|(?:\b(?:\d(?:_\d)?)+\.?(?:\d(?:_\d)?)*|\B\.(?:\d(?:_\d)?)+)(?:[Ee][+-]?(?:\d(?:_\d)?)+)?/,
+	// Allow for all non-ASCII characters (See http://stackoverflow.com/a/2008444)
+	'function': /#?[_$a-zA-Z\xA0-\uFFFF][$\w\xA0-\uFFFF]*(?=\s*(?:\.\s*(?:apply|bind|call)\s*)?\()/,
+	'operator': /--|\+\+|\*\*=?|=>|&&|\|\||[!=]==|<<=?|>>>?=?|[-+*/%&|^!=<>]=?|\.{3}|\?[.?]?|[~:]/
+});
+
+Prism.languages.javascript['class-name'][0].pattern = /(\b(?:class|interface|extends|implements|instanceof|new)\s+)[\w.\\]+/;
+
+Prism.languages.insertBefore('javascript', 'keyword', {
+	'regex': {
+		pattern: /((?:^|[^$\w\xA0-\uFFFF."'\])\s])\s*)\/(?:\[(?:[^\]\\\r\n]|\\.)*]|\\.|[^/\\\[\r\n])+\/[gimyus]{0,6}(?=(?:\s|\/\*[\s\S]*?\*\/)*(?:$|[\r\n,.;:})\]]|\/\/))/,
+		lookbehind: true,
+		greedy: true
+	},
+	// This must be declared before keyword because we use "function" inside the look-forward
+	'function-variable': {
+		pattern: /#?[_$a-zA-Z\xA0-\uFFFF][$\w\xA0-\uFFFF]*(?=\s*[=:]\s*(?:async\s*)?(?:\bfunction\b|(?:\((?:[^()]|\([^()]*\))*\)|[_$a-zA-Z\xA0-\uFFFF][$\w\xA0-\uFFFF]*)\s*=>))/,
+		alias: 'function'
+	},
+	'parameter': [
+		{
+			pattern: /(function(?:\s+[_$A-Za-z\xA0-\uFFFF][$\w\xA0-\uFFFF]*)?\s*\(\s*)(?!\s)(?:[^()]|\([^()]*\))+?(?=\s*\))/,
+			lookbehind: true,
+			inside: Prism.languages.javascript
+		},
+		{
+			pattern: /[_$a-z\xA0-\uFFFF][$\w\xA0-\uFFFF]*(?=\s*=>)/i,
+			inside: Prism.languages.javascript
+		},
+		{
+			pattern: /(\(\s*)(?!\s)(?:[^()]|\([^()]*\))+?(?=\s*\)\s*=>)/,
+			lookbehind: true,
+			inside: Prism.languages.javascript
+		},
+		{
+			pattern: /((?:\b|\s|^)(?!(?:as|async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|enum|export|extends|finally|for|from|function|get|if|implements|import|in|instanceof|interface|let|new|null|of|package|private|protected|public|return|set|static|super|switch|this|throw|try|typeof|undefined|var|void|while|with|yield)(?![$\w\xA0-\uFFFF]))(?:[_$A-Za-z\xA0-\uFFFF][$\w\xA0-\uFFFF]*\s*)\(\s*)(?!\s)(?:[^()]|\([^()]*\))+?(?=\s*\)\s*\{)/,
+			lookbehind: true,
+			inside: Prism.languages.javascript
+		}
+	],
+	'constant': /\b[A-Z](?:[A-Z_]|\dx?)*\b/
+});
+
+Prism.languages.insertBefore('javascript', 'string', {
+	'template-string': {
+		pattern: /`(?:\\[\s\S]|\${(?:[^{}]|{(?:[^{}]|{[^}]*})*})+}|(?!\${)[^\\`])*`/,
+		greedy: true,
+		inside: {
+			'template-punctuation': {
+				pattern: /^`|`$/,
+				alias: 'string'
+			},
+			'interpolation': {
+				pattern: /((?:^|[^\\])(?:\\{2})*)\${(?:[^{}]|{(?:[^{}]|{[^}]*})*})+}/,
+				lookbehind: true,
+				inside: {
+					'interpolation-punctuation': {
+						pattern: /^\${|}$/,
+						alias: 'punctuation'
+					},
+					rest: Prism.languages.javascript
+				}
+			},
+			'string': /[\s\S]+/
+		}
+	}
+});
+
+if (Prism.languages.markup) {
+	Prism.languages.markup.tag.addInlined('script', 'javascript');
+}
+
+Prism.languages.js = Prism.languages.javascript;
+
+
+/* **********************************************
+     Begin prism-file-highlight.js
+********************************************** */
+
+(function () {
+	if (typeof self === 'undefined' || !self.Prism || !self.document || !document.querySelector) {
+		return;
+	}
+
+	/**
+	 * @param {Element} [container=document]
+	 */
+	self.Prism.fileHighlight = function(container) {
+		container = container || document;
+
+		var Extensions = {
+			'js': 'javascript',
+			'py': 'python',
+			'rb': 'ruby',
+			'ps1': 'powershell',
+			'psm1': 'powershell',
+			'sh': 'bash',
+			'bat': 'batch',
+			'h': 'c',
+			'tex': 'latex'
+		};
+
+		Array.prototype.slice.call(container.querySelectorAll('pre[data-src]')).forEach(function (pre) {
+			// ignore if already loaded
+			if (pre.hasAttribute('data-src-loaded')) {
+				return;
+			}
+
+			// load current
+			var src = pre.getAttribute('data-src');
+
+			var language, parent = pre;
+			var lang = /\blang(?:uage)?-([\w-]+)\b/i;
+			while (parent && !lang.test(parent.className)) {
+				parent = parent.parentNode;
+			}
+
+			if (parent) {
+				language = (pre.className.match(lang) || [, ''])[1];
+			}
+
+			if (!language) {
+				var extension = (src.match(/\.(\w+)$/) || [, ''])[1];
+				language = Extensions[extension] || extension;
+			}
+
+			var code = document.createElement('code');
+			code.className = 'language-' + language;
+
+			pre.textContent = '';
+
+			code.textContent = 'Loading…';
+
+			pre.appendChild(code);
+
+			var xhr = new XMLHttpRequest();
+
+			xhr.open('GET', src, true);
+
+			xhr.onreadystatechange = function () {
+				if (xhr.readyState == 4) {
+
+					if (xhr.status < 400 && xhr.responseText) {
+						code.textContent = xhr.responseText;
+
+						Prism.highlightElement(code);
+						// mark as loaded
+						pre.setAttribute('data-src-loaded', '');
+					}
+					else if (xhr.status >= 400) {
+						code.textContent = '✖ Error ' + xhr.status + ' while fetching file: ' + xhr.statusText;
+					}
+					else {
+						code.textContent = '✖ Error: File does not exist or is empty';
+					}
+				}
+			};
+
+			xhr.send(null);
+		});
+	};
+
+	document.addEventListener('DOMContentLoaded', function () {
+		// execute inside handler, for dropping Event as argument
+		self.Prism.fileHighlight();
+	});
+
+})();
+
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../../../webpack/buildin/global.js */ "../../home/undefined/.config/yarn/global/node_modules/webpack/buildin/global.js")))
+
+/***/ }),
+
+/***/ "../../home/undefined/.config/yarn/global/node_modules/webpack/buildin/global.js":
+/*!***********************************!*\
+  !*** (webpack)/buildin/global.js ***!
+  \***********************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+var g;
+
+// This works in non-strict mode
+g = (function() {
+	return this;
+})();
+
+try {
+	// This works if eval is allowed (see CSP)
+	g = g || new Function("return this")();
+} catch (e) {
+	// This works if the window reference is available
+	if (typeof window === "object") g = window;
+}
+
+// g can still be undefined, but nothing to do about it...
+// We return undefined, instead of nothing here, so it's
+// easier to handle this case. if(!global) { ...}
+
+module.exports = g;
+
+
+/***/ }),
+
 /***/ "./App.svelte":
 /*!********************!*\
   !*** ./App.svelte ***!
@@ -107,12 +1286,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _components_buttons_EnvButton_svelte__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./components/buttons/EnvButton.svelte */ "./components/buttons/EnvButton.svelte");
 /* harmony import */ var _components_buttons_SearchButton_svelte__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./components/buttons/SearchButton.svelte */ "./components/buttons/SearchButton.svelte");
 /* harmony import */ var _components_Navigation_svelte__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./components/Navigation.svelte */ "./components/Navigation.svelte");
-/* tmp/snowboard-build-31063aMtH15CbmWUR/App.svelte generated by Svelte v3.20.1 */
-
-
-const { document: document_1 } = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
-
-
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_App_svelte_css__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./App.svelte.css */ "./App.svelte.css");
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_App_svelte_css__WEBPACK_IMPORTED_MODULE_8___default = /*#__PURE__*/__webpack_require__.n(_tmp_snowboard_build_154486hw7ZWDyDSn23_App_svelte_css__WEBPACK_IMPORTED_MODULE_8__);
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/App.svelte generated by Svelte v3.20.1 */
 
 
 
@@ -125,14 +1301,10 @@ const { document: document_1 } = !(function webpackMissingModule() { var e = new
 
 
 
-function add_css() {
-	var style = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("style");
-	style.id = "svelte-25hqin-style";
-	style.textContent = ".main.svelte-25hqin.svelte-25hqin{padding:2rem 3rem}.main.svelte-25hqin.svelte-25hqin,.footer.svelte-25hqin.svelte-25hqin{background-color:#fff}.is-darkmode.svelte-25hqin .main.svelte-25hqin,.is-darkmode.svelte-25hqin .footer.svelte-25hqin{background-color:#141414}.icon-brand.svelte-25hqin.svelte-25hqin{margin-right:0.5rem}.menu-navigation.svelte-25hqin.svelte-25hqin{position:fixed;height:87vh;overflow-x:auto;max-width:23%}html{height:100%}body{min-height:100%}code[class*=\"language-\"], pre[class*=\"language-\"]{background-color:#fff;font-family:Consolas, Monaco, \"Andale Mono\", \"Ubuntu Mono\", monospace}.is-darkmode code[class*=\"language-\"], .is-darkmode\n      pre[class*=\"language-\"]{background-color:#2b2b2b}.token.number, .token.tag{display:inline;padding:inherit;font-size:inherit;line-height:inherit;text-align:inherit;vertical-align:inherit;border-radius:inherit;font-weight:inherit;white-space:inherit;background:inherit;margin:inherit}.menu li.is-active{background-color:#3273dc;border-radius:2px}.menu li.is-active a{color:#fff}.menu li.is-active a:hover{background-color:inherit;color:#fff}";
-	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(document_1.head, style);
-}
 
-// (223:8) {#if config.playground.enabled}
+
+
+
 function create_if_block(ctx) {
 	let current;
 
@@ -186,15 +1358,15 @@ function create_fragment(ctx) {
 	let t4;
 	let div2;
 	let t5;
+	let div9;
 	let div8;
-	let div7;
 	let div5;
 	let aside;
 	let t6;
-	let div6;
+	let div7;
 	let t7;
 	let footer;
-	let div9;
+	let div6;
 	let p;
 	let strong0;
 	let t8;
@@ -206,7 +1378,6 @@ function create_fragment(ctx) {
 
 	const searchbutton = new _components_buttons_SearchButton_svelte__WEBPACK_IMPORTED_MODULE_6__["default"]({
 			props: {
-				config: /*config*/ ctx[5],
 				groups: /*groups*/ ctx[2],
 				toggleSearch: /*toggleSearch*/ ctx[10]
 			}
@@ -255,24 +1426,24 @@ function create_fragment(ctx) {
 			div2 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(themebutton.$$.fragment);
 			t5 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
+			div9 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
 			div8 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
-			div7 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
 			div5 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
 			aside = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("aside");
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(navigation_1.$$.fragment);
 			t6 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
-			div6 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
+			div7 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(router_1.$$.fragment);
 			t7 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
 			footer = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("footer");
-			div9 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
+			div6 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
 			p = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("p");
 			strong0 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("strong");
 			t8 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(/*title*/ ctx[0]);
-			t9 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("\n        powered by\n        ");
+			t9 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("\n              powered by\n              ");
 			a1 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("a");
 			a1.innerHTML = `<strong>Snowboard.</strong>`;
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(span0, "class", "icon icon-brand is-medium has-text-grey-light svelte-25hqin");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(span0, "class", "icon icon-brand is-medium has-text-grey-light svelte-1hkzlle");
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(span1, "class", "title is-4");
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a0, "href", a0_href_value = /*config*/ ctx[5].basePath);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a0, "class", "navbar-item");
@@ -285,16 +1456,16 @@ function create_fragment(ctx) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(nav, "class", "navbar is-fixed-top has-shadow");
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(nav, "role", "navigation");
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(nav, "aria-label", "main navigation");
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(aside, "class", "menu menu-navigation svelte-25hqin");
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div5, "class", "column is-one-quarter");
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div6, "class", "column is-three-quarters");
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div7, "class", "columns");
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div8, "class", "main svelte-25hqin");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(aside, "class", "menu menu-navigation svelte-1hkzlle");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div5, "class", "column is-one-quarter side-navigation svelte-1hkzlle");
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a1, "href", "https://github.com/bukalapak/snowboard");
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a1, "target", "_blank");
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div9, "class", "content column is-paddingless has-text-centered");
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(footer, "class", "footer svelte-25hqin");
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div10, "class", "body-inner svelte-25hqin");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div6, "class", "content column is-paddingless has-text-centered");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(footer, "class", "footer svelte-1hkzlle");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div7, "class", "column is-three-quarters main-content svelte-1hkzlle");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div8, "class", "columns");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div9, "class", "main svelte-1hkzlle");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div10, "class", "body-inner svelte-1hkzlle");
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div10, "is-darkmode", /*$darkMode*/ ctx[8]);
 		},
 		m(target, anchor, remount) {
@@ -317,18 +1488,18 @@ function create_fragment(ctx) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div3, div2);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(themebutton, div2, null);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div10, t5);
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div10, div8);
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div8, div7);
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div7, div5);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div10, div9);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div9, div8);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div8, div5);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div5, aside);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(navigation_1, aside, null);
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div7, t6);
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div7, div6);
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(router_1, div6, null);
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div10, t7);
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div10, footer);
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(footer, div9);
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div9, p);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div8, t6);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div8, div7);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(router_1, div7, null);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div7, t7);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div7, footer);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(footer, div6);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div6, p);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(p, strong0);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(strong0, t8);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(p, t9);
@@ -365,7 +1536,6 @@ function create_fragment(ctx) {
 			}
 
 			const searchbutton_changes = {};
-			if (dirty & /*config*/ 32) searchbutton_changes.config = /*config*/ ctx[5];
 			if (dirty & /*groups*/ 4) searchbutton_changes.groups = /*groups*/ ctx[2];
 			searchbutton.$set(searchbutton_changes);
 
@@ -534,8 +1704,8 @@ function instance($$self, $$props, $$invalidate) {
 	let environment;
 
 	$$self.$$.update = () => {
-		if ($$self.$$.dirty & /*$router, config*/ 16416) {
-			$: $$invalidate(7, permalink = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toPermalink"])($router.path, config.basePath));
+		if ($$self.$$.dirty & /*$router*/ 16384) {
+			$: $$invalidate(7, permalink = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toPermalink"])($router.path));
 		}
 
 		if ($$self.$$.dirty & /*config, $env*/ 8224) {
@@ -569,7 +1739,6 @@ function instance($$self, $$props, $$invalidate) {
 class App extends !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()) {
 	constructor(options) {
 		super();
-		if (!document_1.getElementById("svelte-25hqin-style")) add_css();
 
 		!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(this, options, instance, create_fragment, !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()), {
 			title: 0,
@@ -584,6 +1753,19 @@ class App extends !(function webpackMissingModule() { var e = new Error("Cannot 
 }
 
 /* harmony default export */ __webpack_exports__["default"] = (App);
+
+
+
+/***/ }),
+
+/***/ "./App.svelte.css":
+/*!************************!*\
+  !*** ./App.svelte.css ***!
+  \************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+// extracted by mini-css-extract-plugin
 
 /***/ }),
 
@@ -605,7 +1787,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _pages_Group_svelte__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./pages/Group.svelte */ "./pages/Group.svelte");
 /* harmony import */ var _pages_Resource_svelte__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./pages/Resource.svelte */ "./pages/Resource.svelte");
 /* harmony import */ var _pages_Transition_svelte__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./pages/Transition.svelte */ "./pages/Transition.svelte");
-/* tmp/snowboard-build-31063aMtH15CbmWUR/Router.svelte generated by Svelte v3.20.1 */
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/Router.svelte generated by Svelte v3.20.1 */
 
 
 
@@ -618,7 +1800,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-function create_if_block(ctx) {
+function create_default_slot_5(ctx) {
 	let current;
 
 	const home = new _pages_Home_svelte__WEBPACK_IMPORTED_MODULE_2__["default"]({
@@ -657,13 +1839,13 @@ function create_if_block(ctx) {
 	};
 }
 
-// (68:2) <Route exact path={`/${prefix.group}/:slug`} let:router>
+// (61:2) <Route exact path={`/${prefix.group}/:slug`} let:router>
 function create_default_slot_4(ctx) {
 	let current;
 
 	const group = new _pages_Group_svelte__WEBPACK_IMPORTED_MODULE_3__["default"]({
 			props: {
-				group: /*getGroup*/ ctx[5](/*router*/ ctx[12].path)
+				group: /*getGroup*/ ctx[4](/*router*/ ctx[11].path)
 			}
 		});
 
@@ -677,7 +1859,7 @@ function create_default_slot_4(ctx) {
 		},
 		p(ctx, dirty) {
 			const group_changes = {};
-			if (dirty & /*router*/ 4096) group_changes.group = /*getGroup*/ ctx[5](/*router*/ ctx[12].path);
+			if (dirty & /*router*/ 2048) group_changes.group = /*getGroup*/ ctx[4](/*router*/ ctx[11].path);
 			group.$set(group_changes);
 		},
 		i(local) {
@@ -695,10 +1877,10 @@ function create_default_slot_4(ctx) {
 	};
 }
 
-// (71:2) <Route exact path={`/${prefix.resource}/:slug`} let:router>
+// (64:2) <Route exact path={`/${prefix.resource}/:slug`} let:router>
 function create_default_slot_3(ctx) {
 	let current;
-	const resource_spread_levels = [/*getResource*/ ctx[6](/*router*/ ctx[12].path)];
+	const resource_spread_levels = [/*getResource*/ ctx[5](/*router*/ ctx[11].path)];
 	let resource_props = {};
 
 	for (let i = 0; i < resource_spread_levels.length; i += 1) {
@@ -716,8 +1898,8 @@ function create_default_slot_3(ctx) {
 			current = true;
 		},
 		p(ctx, dirty) {
-			const resource_changes = (dirty & /*getResource, router*/ 4160)
-			? !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(resource_spread_levels, [!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(/*getResource*/ ctx[6](/*router*/ ctx[12].path))])
+			const resource_changes = (dirty & /*getResource, router*/ 2080)
+			? !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(resource_spread_levels, [!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(/*getResource*/ ctx[5](/*router*/ ctx[11].path))])
 			: {};
 
 			resource.$set(resource_changes);
@@ -749,13 +1931,13 @@ function create_catch_block(ctx) {
 	};
 }
 
-// (75:55)        <Transition {transition}
+// (68:55)        <Transition {transition}
 function create_then_block(ctx) {
 	let current;
 
 	const transition = new _pages_Transition_svelte__WEBPACK_IMPORTED_MODULE_5__["default"]({
 			props: {
-				transition: /*transition*/ ctx[13],
+				transition: /*transition*/ ctx[12],
 				config: /*config*/ ctx[2]
 			}
 		});
@@ -770,7 +1952,7 @@ function create_then_block(ctx) {
 		},
 		p(ctx, dirty) {
 			const transition_changes = {};
-			if (dirty & /*router*/ 4096) transition_changes.transition = /*transition*/ ctx[13];
+			if (dirty & /*router*/ 2048) transition_changes.transition = /*transition*/ ctx[12];
 			if (dirty & /*config*/ 4) transition_changes.config = /*config*/ ctx[2];
 			transition.$set(transition_changes);
 		},
@@ -801,7 +1983,7 @@ function create_pending_block(ctx) {
 	};
 }
 
-// (74:2) <Route exact path={`/${prefix.transition}/:slug`} let:router>
+// (67:2) <Route exact path={`/${prefix.transition}/:slug`} let:router>
 function create_default_slot_2(ctx) {
 	let await_block_anchor;
 	let promise;
@@ -814,11 +1996,11 @@ function create_default_slot_2(ctx) {
 		pending: create_pending_block,
 		then: create_then_block,
 		catch: create_catch_block,
-		value: 13,
+		value: 12,
 		blocks: [,,,]
 	};
 
-	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(promise = /*getTransition*/ ctx[7](/*router*/ ctx[12].path), info);
+	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(promise = /*getTransition*/ ctx[6](/*router*/ ctx[11].path), info);
 
 	return {
 		c() {
@@ -836,11 +2018,11 @@ function create_default_slot_2(ctx) {
 			ctx = new_ctx;
 			info.ctx = ctx;
 
-			if (dirty & /*router*/ 4096 && promise !== (promise = /*getTransition*/ ctx[7](/*router*/ ctx[12].path)) && !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(promise, info)) {
+			if (dirty & /*router*/ 2048 && promise !== (promise = /*getTransition*/ ctx[6](/*router*/ ctx[11].path)) && !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(promise, info)) {
 				
 			} else {
 				const child_ctx = ctx.slice();
-				child_ctx[13] = info.resolved;
+				child_ctx[12] = info.resolved;
 				info.block.p(child_ctx, dirty);
 			}
 		},
@@ -866,7 +2048,7 @@ function create_default_slot_2(ctx) {
 	};
 }
 
-// (79:2) <Route fallback>
+// (72:2) <Route fallback>
 function create_default_slot_1(ctx) {
 	let t;
 
@@ -883,24 +2065,18 @@ function create_default_slot_1(ctx) {
 	};
 }
 
-// (62:0) <Router path={config.basePath.slice(0, -1)}>
+// (57:0) <Router path={config.basePath.slice(0, -1)}>
 function create_default_slot(ctx) {
 	let t0;
 	let t1;
 	let t2;
+	let t3;
 	let current;
 
 	const route0 = new !(function webpackMissingModule() { var e = new Error("Cannot find module 'yrv'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())({
 			props: {
 				exact: true,
-				path: `/${/*prefix*/ ctx[4].group}/:slug`,
-				$$slots: {
-					default: [
-						create_default_slot_4,
-						({ router }) => ({ 12: router }),
-						({ router }) => router ? 4096 : 0
-					]
-				},
+				$$slots: { default: [create_default_slot_5] },
 				$$scope: { ctx }
 			}
 		});
@@ -908,12 +2084,12 @@ function create_default_slot(ctx) {
 	const route1 = new !(function webpackMissingModule() { var e = new Error("Cannot find module 'yrv'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())({
 			props: {
 				exact: true,
-				path: `/${/*prefix*/ ctx[4].resource}/:slug`,
+				path: `/${/*prefix*/ ctx[3].group}/:slug`,
 				$$slots: {
 					default: [
-						create_default_slot_3,
-						({ router }) => ({ 12: router }),
-						({ router }) => router ? 4096 : 0
+						create_default_slot_4,
+						({ router }) => ({ 11: router }),
+						({ router }) => router ? 2048 : 0
 					]
 				},
 				$$scope: { ctx }
@@ -923,12 +2099,12 @@ function create_default_slot(ctx) {
 	const route2 = new !(function webpackMissingModule() { var e = new Error("Cannot find module 'yrv'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())({
 			props: {
 				exact: true,
-				path: `/${/*prefix*/ ctx[4].transition}/:slug`,
+				path: `/${/*prefix*/ ctx[3].resource}/:slug`,
 				$$slots: {
 					default: [
-						create_default_slot_2,
-						({ router }) => ({ 12: router }),
-						({ router }) => router ? 4096 : 0
+						create_default_slot_3,
+						({ router }) => ({ 11: router }),
+						({ router }) => router ? 2048 : 0
 					]
 				},
 				$$scope: { ctx }
@@ -936,6 +2112,21 @@ function create_default_slot(ctx) {
 		});
 
 	const route3 = new !(function webpackMissingModule() { var e = new Error("Cannot find module 'yrv'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())({
+			props: {
+				exact: true,
+				path: `/${/*prefix*/ ctx[3].transition}/:slug`,
+				$$slots: {
+					default: [
+						create_default_slot_2,
+						({ router }) => ({ 11: router }),
+						({ router }) => router ? 2048 : 0
+					]
+				},
+				$$scope: { ctx }
+			}
+		});
+
+	const route4 = new !(function webpackMissingModule() { var e = new Error("Cannot find module 'yrv'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())({
 			props: {
 				fallback: true,
 				$$slots: { default: [create_default_slot_1] },
@@ -952,6 +2143,8 @@ function create_default_slot(ctx) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(route2.$$.fragment);
 			t2 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(route3.$$.fragment);
+			t3 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(route4.$$.fragment);
 		},
 		m(target, anchor) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(route0, target, anchor);
@@ -961,37 +2154,46 @@ function create_default_slot(ctx) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(route2, target, anchor);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, t2, anchor);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(route3, target, anchor);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, t3, anchor);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(route4, target, anchor);
 			current = true;
 		},
 		p(ctx, dirty) {
 			const route0_changes = {};
 
-			if (dirty & /*$$scope, router*/ 20480) {
+			if (dirty & /*$$scope, title, description*/ 8195) {
 				route0_changes.$$scope = { dirty, ctx };
 			}
 
 			route0.$set(route0_changes);
 			const route1_changes = {};
 
-			if (dirty & /*$$scope, router*/ 20480) {
+			if (dirty & /*$$scope, router*/ 10240) {
 				route1_changes.$$scope = { dirty, ctx };
 			}
 
 			route1.$set(route1_changes);
 			const route2_changes = {};
 
-			if (dirty & /*$$scope, router, config*/ 20484) {
+			if (dirty & /*$$scope, router*/ 10240) {
 				route2_changes.$$scope = { dirty, ctx };
 			}
 
 			route2.$set(route2_changes);
 			const route3_changes = {};
 
-			if (dirty & /*$$scope*/ 16384) {
+			if (dirty & /*$$scope, router, config*/ 10244) {
 				route3_changes.$$scope = { dirty, ctx };
 			}
 
 			route3.$set(route3_changes);
+			const route4_changes = {};
+
+			if (dirty & /*$$scope*/ 8192) {
+				route4_changes.$$scope = { dirty, ctx };
+			}
+
+			route4.$set(route4_changes);
 		},
 		i(local) {
 			if (current) return;
@@ -999,6 +2201,7 @@ function create_default_slot(ctx) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(route1.$$.fragment, local);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(route2.$$.fragment, local);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(route3.$$.fragment, local);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(route4.$$.fragment, local);
 			current = true;
 		},
 		o(local) {
@@ -1006,6 +2209,7 @@ function create_default_slot(ctx) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(route1.$$.fragment, local);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(route2.$$.fragment, local);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(route3.$$.fragment, local);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(route4.$$.fragment, local);
 			current = false;
 		},
 		d(detaching) {
@@ -1016,14 +2220,14 @@ function create_default_slot(ctx) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(route2, detaching);
 			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t2);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(route3, detaching);
+			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t3);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(route4, detaching);
 		}
 	};
 }
 
 function create_fragment(ctx) {
-	let t;
 	let current;
-	let if_block = /*config*/ ctx[2].basePath == /*$router*/ ctx[3].path && create_if_block(ctx);
 
 	const router_1 = new !(function webpackMissingModule() { var e = new Error("Cannot find module 'yrv'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())({
 			props: {
@@ -1035,41 +2239,17 @@ function create_fragment(ctx) {
 
 	return {
 		c() {
-			if (if_block) if_block.c();
-			t = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(router_1.$$.fragment);
 		},
 		m(target, anchor) {
-			if (if_block) if_block.m(target, anchor);
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, t, anchor);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(router_1, target, anchor);
 			current = true;
 		},
 		p(ctx, [dirty]) {
-			if (/*config*/ ctx[2].basePath == /*$router*/ ctx[3].path) {
-				if (if_block) {
-					if_block.p(ctx, dirty);
-					!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(if_block, 1);
-				} else {
-					if_block = create_if_block(ctx);
-					if_block.c();
-					!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(if_block, 1);
-					if_block.m(t.parentNode, t);
-				}
-			} else if (if_block) {
-				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
-
-				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(if_block, 1, 1, () => {
-					if_block = null;
-				});
-
-				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
-			}
-
 			const router_1_changes = {};
 			if (dirty & /*config*/ 4) router_1_changes.path = /*config*/ ctx[2].basePath.slice(0, -1);
 
-			if (dirty & /*$$scope, config*/ 16388) {
+			if (dirty & /*$$scope, config, title, description*/ 8199) {
 				router_1_changes.$$scope = { dirty, ctx };
 			}
 
@@ -1077,18 +2257,14 @@ function create_fragment(ctx) {
 		},
 		i(local) {
 			if (current) return;
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(if_block);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(router_1.$$.fragment, local);
 			current = true;
 		},
 		o(local) {
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(if_block);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(router_1.$$.fragment, local);
 			current = false;
 		},
 		d(detaching) {
-			if (if_block) if_block.d(detaching);
-			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(router_1, detaching);
 		}
 	};
@@ -1097,8 +2273,6 @@ function create_fragment(ctx) {
 const jsonPath = "/__json__/";
 
 function instance($$self, $$props, $$invalidate) {
-	let $router;
-	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())($$self, !(function webpackMissingModule() { var e = new Error("Cannot find module 'yrv'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()), $$value => $$invalidate(3, $router = $$value));
 	let { title } = $$props;
 	let { description } = $$props;
 	let { groups } = $$props;
@@ -1119,17 +2293,17 @@ function instance($$self, $$props, $$invalidate) {
 	};
 
 	const getGroup = pathname => {
-		const permalink = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toPermalink"])(pathname, config.basePath);
+		const permalink = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toPermalink"])(pathname);
 		return !(function webpackMissingModule() { var e = new Error("Cannot find module 'snowboard-theme-helper'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(permalink, groups);
 	};
 
 	const getResource = pathname => {
-		const permalink = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toPermalink"])(pathname, config.basePath);
+		const permalink = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toPermalink"])(pathname);
 		return !(function webpackMissingModule() { var e = new Error("Cannot find module 'snowboard-theme-helper'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(permalink, resources, groups);
 	};
 
 	const getTransition = async pathname => {
-		const permalink = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toPermalink"])(pathname, config.basePath);
+		const permalink = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toPermalink"])(pathname);
 		const uuid = uuids[permalink];
 
 		if (!uuid) {
@@ -1142,9 +2316,9 @@ function instance($$self, $$props, $$invalidate) {
 	$$self.$set = $$props => {
 		if ("title" in $$props) $$invalidate(0, title = $$props.title);
 		if ("description" in $$props) $$invalidate(1, description = $$props.description);
-		if ("groups" in $$props) $$invalidate(8, groups = $$props.groups);
-		if ("resources" in $$props) $$invalidate(9, resources = $$props.resources);
-		if ("uuids" in $$props) $$invalidate(10, uuids = $$props.uuids);
+		if ("groups" in $$props) $$invalidate(7, groups = $$props.groups);
+		if ("resources" in $$props) $$invalidate(8, resources = $$props.resources);
+		if ("uuids" in $$props) $$invalidate(9, uuids = $$props.uuids);
 		if ("config" in $$props) $$invalidate(2, config = $$props.config);
 	};
 
@@ -1152,7 +2326,6 @@ function instance($$self, $$props, $$invalidate) {
 		title,
 		description,
 		config,
-		$router,
 		prefix,
 		getGroup,
 		getResource,
@@ -1170,9 +2343,9 @@ class Router_1 extends !(function webpackMissingModule() { var e = new Error("Ca
 		!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(this, options, instance, create_fragment, !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()), {
 			title: 0,
 			description: 1,
-			groups: 8,
-			resources: 9,
-			uuids: 10,
+			groups: 7,
+			resources: 8,
+			uuids: 9,
 			config: 2
 		});
 	}
@@ -1194,7 +2367,7 @@ __webpack_require__.r(__webpack_exports__);
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'yrv'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 /* harmony import */ var _lib_helper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../lib/helper */ "./lib/helper/index.js");
-/* tmp/snowboard-build-31063aMtH15CbmWUR/components/Breadcrumb.svelte generated by Svelte v3.20.1 */
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/components/Breadcrumb.svelte generated by Svelte v3.20.1 */
 
 
 
@@ -1385,7 +2558,7 @@ function create_default_slot_2(ctx) {
 	};
 }
 
-// (19:6) {#if resource}
+// (21:6) {#if resource}
 function create_if_block_2(ctx) {
 	let li;
 	let current;
@@ -1434,7 +2607,7 @@ function create_if_block_2(ctx) {
 	};
 }
 
-// (21:10) <Link href={toHref(resource.permalink)}>
+// (23:10) <Link href={toHref(resource.permalink)}>
 function create_default_slot_1(ctx) {
 	let t_value = /*resource*/ ctx[1].title + "";
 	let t;
@@ -1455,7 +2628,7 @@ function create_default_slot_1(ctx) {
 	};
 }
 
-// (25:6) {#if transition}
+// (29:6) {#if transition}
 function create_if_block_1(ctx) {
 	let li;
 	let current;
@@ -1504,7 +2677,7 @@ function create_if_block_1(ctx) {
 	};
 }
 
-// (27:10) <Link href={toHref(transition.permalink)}>
+// (31:10) <Link href={toHref(transition.permalink)}>
 function create_default_slot(ctx) {
 	let t_value = /*transition*/ ctx[2].title + "";
 	let t;
@@ -1613,7 +2786,7 @@ class Breadcrumb extends !(function webpackMissingModule() { var e = new Error("
 __webpack_require__.r(__webpack_exports__);
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 /* harmony import */ var _lib_helper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../lib/helper */ "./lib/helper/index.js");
-/* tmp/snowboard-build-31063aMtH15CbmWUR/components/CodeBlock.svelte generated by Svelte v3.20.1 */
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/components/CodeBlock.svelte generated by Svelte v3.20.1 */
 
 
 
@@ -1736,17 +2909,12 @@ class CodeBlock extends !(function webpackMissingModule() { var e = new Error("C
 __webpack_require__.r(__webpack_exports__);
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 /* harmony import */ var _lib_store__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../lib/store */ "./lib/store.js");
-/* tmp/snowboard-build-31063aMtH15CbmWUR/components/FieldSwitch.svelte generated by Svelte v3.20.1 */
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_components_FieldSwitch_svelte_css__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./components/FieldSwitch.svelte.css */ "./components/FieldSwitch.svelte.css");
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_components_FieldSwitch_svelte_css__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(_tmp_snowboard_build_154486hw7ZWDyDSn23_components_FieldSwitch_svelte_css__WEBPACK_IMPORTED_MODULE_2__);
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/components/FieldSwitch.svelte generated by Svelte v3.20.1 */
 
 
 
-
-function add_css() {
-	var style = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("style");
-	style.id = "svelte-aiter3-style";
-	style.textContent = ".control-switch.svelte-aiter3{padding-top:0.4rem}.has-border.svelte-aiter3{border-color:#dbdbdb}.has-dark-background.svelte-aiter3{background-color:#484848;border-color:#484848;color:#fff}";
-	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(document.head, style);
-}
 
 function create_fragment(ctx) {
 	let div;
@@ -1915,7 +3083,6 @@ function instance($$self, $$props, $$invalidate) {
 class FieldSwitch extends !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()) {
 	constructor(options) {
 		super();
-		if (!document.getElementById("svelte-aiter3-style")) add_css();
 
 		!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(this, options, instance, create_fragment, !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()), {
 			used: 0,
@@ -1928,6 +3095,19 @@ class FieldSwitch extends !(function webpackMissingModule() { var e = new Error(
 }
 
 /* harmony default export */ __webpack_exports__["default"] = (FieldSwitch);
+
+
+
+/***/ }),
+
+/***/ "./components/FieldSwitch.svelte.css":
+/*!*******************************************!*\
+  !*** ./components/FieldSwitch.svelte.css ***!
+  \*******************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+// extracted by mini-css-extract-plugin
 
 /***/ }),
 
@@ -1944,7 +3124,9 @@ __webpack_require__.r(__webpack_exports__);
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'yrv'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'snowboard-theme-helper'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 /* harmony import */ var _lib_helper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../lib/helper */ "./lib/helper/index.js");
-/* tmp/snowboard-build-31063aMtH15CbmWUR/components/Navigation.svelte generated by Svelte v3.20.1 */
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_components_Navigation_svelte_css__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./components/Navigation.svelte.css */ "./components/Navigation.svelte.css");
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_components_Navigation_svelte_css__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(_tmp_snowboard_build_154486hw7ZWDyDSn23_components_Navigation_svelte_css__WEBPACK_IMPORTED_MODULE_2__);
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/components/Navigation.svelte generated by Svelte v3.20.1 */
 
 
 
@@ -1969,7 +3151,63 @@ function get_each_context(ctx, list, i) {
 	return child_ctx;
 }
 
-// (50:10) {#each child.children as grandchild}
+// (55:8) {#if child.children.length > 0}
+function create_if_block(ctx) {
+	let ul;
+	let each_value_2 = /*child*/ ctx[8].children;
+	let each_blocks = [];
+
+	for (let i = 0; i < each_value_2.length; i += 1) {
+		each_blocks[i] = create_each_block_2(get_each_context_2(ctx, each_value_2, i));
+	}
+
+	return {
+		c() {
+			ul = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("ul");
+
+			for (let i = 0; i < each_blocks.length; i += 1) {
+				each_blocks[i].c();
+			}
+		},
+		m(target, anchor) {
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, ul, anchor);
+
+			for (let i = 0; i < each_blocks.length; i += 1) {
+				each_blocks[i].m(ul, null);
+			}
+		},
+		p(ctx, dirty) {
+			if (dirty & /*filteredNavigation, permalink, toHref, handleClick*/ 7) {
+				each_value_2 = /*child*/ ctx[8].children;
+				let i;
+
+				for (i = 0; i < each_value_2.length; i += 1) {
+					const child_ctx = get_each_context_2(ctx, each_value_2, i);
+
+					if (each_blocks[i]) {
+						each_blocks[i].p(child_ctx, dirty);
+					} else {
+						each_blocks[i] = create_each_block_2(child_ctx);
+						each_blocks[i].c();
+						each_blocks[i].m(ul, null);
+					}
+				}
+
+				for (; i < each_blocks.length; i += 1) {
+					each_blocks[i].d(1);
+				}
+
+				each_blocks.length = each_value_2.length;
+			}
+		},
+		d(detaching) {
+			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(ul);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks, detaching);
+		}
+	};
+}
+
+// (57:12) {#each child.children as grandchild}
 function create_each_block_2(ctx) {
 	let li;
 	let a;
@@ -1985,8 +3223,8 @@ function create_each_block_2(ctx) {
 			a = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("a");
 			t0 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t0_value);
 			t1 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "href", a_href_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toHref"])(/*grandchild*/ ctx[11].permalink, /*config*/ ctx[0].basePath));
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(li, "is-active", /*grandchild*/ ctx[11].permalink == /*permalink*/ ctx[1]);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "href", a_href_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toHref"])(/*grandchild*/ ctx[11].permalink));
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(li, "is-active", /*grandchild*/ ctx[11].permalink == /*permalink*/ ctx[0]);
 		},
 		m(target, anchor, remount) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, li, anchor);
@@ -1994,17 +3232,17 @@ function create_each_block_2(ctx) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, t0);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(li, t1);
 			if (remount) dispose();
-			dispose = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "click", !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(/*handleClick*/ ctx[3]));
+			dispose = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "click", !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(/*handleClick*/ ctx[2]));
 		},
 		p(ctx, dirty) {
-			if (dirty & /*filteredNavigation*/ 4 && t0_value !== (t0_value = /*grandchild*/ ctx[11].title + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t0, t0_value);
+			if (dirty & /*filteredNavigation*/ 2 && t0_value !== (t0_value = /*grandchild*/ ctx[11].title + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t0, t0_value);
 
-			if (dirty & /*filteredNavigation, config*/ 5 && a_href_value !== (a_href_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toHref"])(/*grandchild*/ ctx[11].permalink, /*config*/ ctx[0].basePath))) {
+			if (dirty & /*filteredNavigation*/ 2 && a_href_value !== (a_href_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toHref"])(/*grandchild*/ ctx[11].permalink))) {
 				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "href", a_href_value);
 			}
 
-			if (dirty & /*filteredNavigation, permalink*/ 6) {
-				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(li, "is-active", /*grandchild*/ ctx[11].permalink == /*permalink*/ ctx[1]);
+			if (dirty & /*filteredNavigation, permalink*/ 3) {
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(li, "is-active", /*grandchild*/ ctx[11].permalink == /*permalink*/ ctx[0]);
 			}
 		},
 		d(detaching) {
@@ -2014,97 +3252,71 @@ function create_each_block_2(ctx) {
 	};
 }
 
-// (41:2) {#each item.children as child}
+// (47:2) {#each item.children as child}
 function create_each_block_1(ctx) {
-	let ul1;
+	let ul;
 	let li;
 	let a;
 	let t0_value = /*child*/ ctx[8].title + "";
 	let t0;
 	let a_href_value;
 	let t1;
-	let ul0;
 	let t2;
 	let dispose;
-	let each_value_2 = /*child*/ ctx[8].children;
-	let each_blocks = [];
-
-	for (let i = 0; i < each_value_2.length; i += 1) {
-		each_blocks[i] = create_each_block_2(get_each_context_2(ctx, each_value_2, i));
-	}
+	let if_block = /*child*/ ctx[8].children.length > 0 && create_if_block(ctx);
 
 	return {
 		c() {
-			ul1 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("ul");
+			ul = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("ul");
 			li = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("li");
 			a = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("a");
 			t0 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t0_value);
 			t1 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
-			ul0 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("ul");
-
-			for (let i = 0; i < each_blocks.length; i += 1) {
-				each_blocks[i].c();
-			}
-
+			if (if_block) if_block.c();
 			t2 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "href", a_href_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toHref"])(/*child*/ ctx[8].permalink, /*config*/ ctx[0].basePath));
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(ul1, "class", "menu-list");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "href", a_href_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toHref"])(/*child*/ ctx[8].permalink));
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(ul, "class", "menu-list");
 		},
 		m(target, anchor, remount) {
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, ul1, anchor);
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(ul1, li);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, ul, anchor);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(ul, li);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(li, a);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, t0);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(li, t1);
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(li, ul0);
-
-			for (let i = 0; i < each_blocks.length; i += 1) {
-				each_blocks[i].m(ul0, null);
-			}
-
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(ul1, t2);
+			if (if_block) if_block.m(li, null);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(ul, t2);
 			if (remount) dispose();
-			dispose = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "click", !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(/*handleClick*/ ctx[3]));
+			dispose = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "click", !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(/*handleClick*/ ctx[2]));
 		},
 		p(ctx, dirty) {
-			if (dirty & /*filteredNavigation*/ 4 && t0_value !== (t0_value = /*child*/ ctx[8].title + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t0, t0_value);
+			if (dirty & /*filteredNavigation*/ 2 && t0_value !== (t0_value = /*child*/ ctx[8].title + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t0, t0_value);
 
-			if (dirty & /*filteredNavigation, config*/ 5 && a_href_value !== (a_href_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toHref"])(/*child*/ ctx[8].permalink, /*config*/ ctx[0].basePath))) {
+			if (dirty & /*filteredNavigation*/ 2 && a_href_value !== (a_href_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toHref"])(/*child*/ ctx[8].permalink))) {
 				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "href", a_href_value);
 			}
 
-			if (dirty & /*filteredNavigation, permalink, toHref, config, handleClick*/ 15) {
-				each_value_2 = /*child*/ ctx[8].children;
-				let i;
-
-				for (i = 0; i < each_value_2.length; i += 1) {
-					const child_ctx = get_each_context_2(ctx, each_value_2, i);
-
-					if (each_blocks[i]) {
-						each_blocks[i].p(child_ctx, dirty);
-					} else {
-						each_blocks[i] = create_each_block_2(child_ctx);
-						each_blocks[i].c();
-						each_blocks[i].m(ul0, null);
-					}
+			if (/*child*/ ctx[8].children.length > 0) {
+				if (if_block) {
+					if_block.p(ctx, dirty);
+				} else {
+					if_block = create_if_block(ctx);
+					if_block.c();
+					if_block.m(li, null);
 				}
-
-				for (; i < each_blocks.length; i += 1) {
-					each_blocks[i].d(1);
-				}
-
-				each_blocks.length = each_value_2.length;
+			} else if (if_block) {
+				if_block.d(1);
+				if_block = null;
 			}
 		},
 		d(detaching) {
-			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(ul1);
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks, detaching);
+			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(ul);
+			if (if_block) if_block.d();
 			dispose();
 		}
 	};
 }
 
-// (31:0) {#each filteredNavigation as item}
+// (37:0) {#each filteredNavigation as item}
 function create_each_block(ctx) {
 	let ul;
 	let li;
@@ -2135,8 +3347,9 @@ function create_each_block(ctx) {
 			}
 
 			each_1_anchor = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "href", a_href_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toHref"])(/*item*/ ctx[5].permalink, /*config*/ ctx[0].basePath));
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(ul, "class", "menu-label");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "href", a_href_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toHref"])(/*item*/ ctx[5].permalink));
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "class", "svelte-12lllef");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(ul, "class", "menu-label svelte-12lllef");
 		},
 		m(target, anchor, remount) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, ul, anchor);
@@ -2151,16 +3364,16 @@ function create_each_block(ctx) {
 
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, each_1_anchor, anchor);
 			if (remount) dispose();
-			dispose = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "click", !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(/*handleClick*/ ctx[3]));
+			dispose = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "click", !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(/*handleClick*/ ctx[2]));
 		},
 		p(ctx, dirty) {
-			if (dirty & /*filteredNavigation*/ 4 && t0_value !== (t0_value = /*item*/ ctx[5].title + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t0, t0_value);
+			if (dirty & /*filteredNavigation*/ 2 && t0_value !== (t0_value = /*item*/ ctx[5].title + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t0, t0_value);
 
-			if (dirty & /*filteredNavigation, config*/ 5 && a_href_value !== (a_href_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toHref"])(/*item*/ ctx[5].permalink, /*config*/ ctx[0].basePath))) {
+			if (dirty & /*filteredNavigation*/ 2 && a_href_value !== (a_href_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toHref"])(/*item*/ ctx[5].permalink))) {
 				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "href", a_href_value);
 			}
 
-			if (dirty & /*filteredNavigation, permalink, toHref, config, handleClick*/ 15) {
+			if (dirty & /*filteredNavigation, permalink, toHref, handleClick*/ 7) {
 				each_value_1 = /*item*/ ctx[5].children;
 				let i;
 
@@ -2195,7 +3408,7 @@ function create_each_block(ctx) {
 
 function create_fragment(ctx) {
 	let each_1_anchor;
-	let each_value = /*filteredNavigation*/ ctx[2];
+	let each_value = /*filteredNavigation*/ ctx[1];
 	let each_blocks = [];
 
 	for (let i = 0; i < each_value.length; i += 1) {
@@ -2218,8 +3431,8 @@ function create_fragment(ctx) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, each_1_anchor, anchor);
 		},
 		p(ctx, [dirty]) {
-			if (dirty & /*filteredNavigation, permalink, toHref, config, handleClick*/ 15) {
-				each_value = /*filteredNavigation*/ ctx[2];
+			if (dirty & /*filteredNavigation, permalink, toHref, handleClick*/ 7) {
+				each_value = /*filteredNavigation*/ ctx[1];
 				let i;
 
 				for (i = 0; i < each_value.length; i += 1) {
@@ -2271,30 +3484,43 @@ function instance($$self, $$props, $$invalidate) {
 	}
 
 	$$self.$set = $$props => {
-		if ("navigation" in $$props) $$invalidate(4, navigation = $$props.navigation);
-		if ("config" in $$props) $$invalidate(0, config = $$props.config);
-		if ("permalink" in $$props) $$invalidate(1, permalink = $$props.permalink);
+		if ("navigation" in $$props) $$invalidate(3, navigation = $$props.navigation);
+		if ("config" in $$props) $$invalidate(4, config = $$props.config);
+		if ("permalink" in $$props) $$invalidate(0, permalink = $$props.permalink);
 	};
 
 	let filteredNavigation;
 
 	$$self.$$.update = () => {
-		if ($$self.$$.dirty & /*permalink, navigation*/ 18) {
-			$: $$invalidate(2, filteredNavigation = !(function webpackMissingModule() { var e = new Error("Cannot find module 'snowboard-theme-helper'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(permalink, navigation));
+		if ($$self.$$.dirty & /*permalink, navigation*/ 9) {
+			$: $$invalidate(1, filteredNavigation = !(function webpackMissingModule() { var e = new Error("Cannot find module 'snowboard-theme-helper'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(permalink, navigation));
 		}
 	};
 
-	return [config, permalink, filteredNavigation, handleClick, navigation];
+	return [permalink, filteredNavigation, handleClick, navigation, config];
 }
 
 class Navigation extends !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()) {
 	constructor(options) {
 		super();
-		!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(this, options, instance, create_fragment, !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()), { navigation: 4, config: 0, permalink: 1 });
+		!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(this, options, instance, create_fragment, !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()), { navigation: 3, config: 4, permalink: 0 });
 	}
 }
 
 /* harmony default export */ __webpack_exports__["default"] = (Navigation);
+
+
+
+/***/ }),
+
+/***/ "./components/Navigation.svelte.css":
+/*!******************************************!*\
+  !*** ./components/Navigation.svelte.css ***!
+  \******************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+// extracted by mini-css-extract-plugin
 
 /***/ }),
 
@@ -2312,7 +3538,7 @@ __webpack_require__.r(__webpack_exports__);
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'snowboard-theme-helper'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 /* harmony import */ var _lib_helper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../lib/helper */ "./lib/helper/index.js");
 /* harmony import */ var _lib_store__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../lib/store */ "./lib/store.js");
-/* tmp/snowboard-build-31063aMtH15CbmWUR/components/buttons/EnvButton.svelte generated by Svelte v3.20.1 */
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/components/buttons/EnvButton.svelte generated by Svelte v3.20.1 */
 
 
 
@@ -2326,7 +3552,7 @@ function get_each_context(ctx, list, i) {
 	return child_ctx;
 }
 
-// (36:0) {#if !isEmpty($token)}
+// (36:0) {#if (isAuth(playground.environments[$env], 'oauth2') && !isEmpty($token))}
 function create_if_block(ctx) {
 	let div1;
 	let div0;
@@ -2399,7 +3625,7 @@ function create_each_block(ctx) {
 }
 
 function create_fragment(ctx) {
-	let show_if = !!(function webpackMissingModule() { var e = new Error("Cannot find module 'lodash'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(/*$token*/ ctx[3]);
+	let show_if = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["isAuth"])(/*playground*/ ctx[0].environments[/*$env*/ ctx[2]], "oauth2") && !!(function webpackMissingModule() { var e = new Error("Cannot find module 'lodash'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(/*$token*/ ctx[3]);
 	let t0;
 	let div1;
 	let a;
@@ -2452,7 +3678,7 @@ function create_fragment(ctx) {
 			dispose = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "click", /*toggleClick*/ ctx[5]);
 		},
 		p(ctx, [dirty]) {
-			if (dirty & /*$token*/ 8) show_if = !!(function webpackMissingModule() { var e = new Error("Cannot find module 'lodash'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(/*$token*/ ctx[3]);
+			if (dirty & /*playground, $env, $token*/ 13) show_if = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["isAuth"])(/*playground*/ ctx[0].environments[/*$env*/ ctx[2]], "oauth2") && !!(function webpackMissingModule() { var e = new Error("Cannot find module 'lodash'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(/*$token*/ ctx[3]);
 
 			if (show_if) {
 				if (if_block) {
@@ -2569,7 +3795,7 @@ __webpack_require__.r(__webpack_exports__);
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'querystringify'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'snowboard-theme-helper'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'yrv'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
-/* tmp/snowboard-build-31063aMtH15CbmWUR/components/buttons/LoginButton.svelte generated by Svelte v3.20.1 */
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/components/buttons/LoginButton.svelte generated by Svelte v3.20.1 */
 
 
 
@@ -2691,32 +3917,27 @@ __webpack_require__.r(__webpack_exports__);
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'yrv'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 /* harmony import */ var _lib_helper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../lib/helper */ "./lib/helper/index.js");
 /* harmony import */ var _lib_store__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../lib/store */ "./lib/store.js");
-/* tmp/snowboard-build-31063aMtH15CbmWUR/components/buttons/SearchButton.svelte generated by Svelte v3.20.1 */
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_components_buttons_SearchButton_svelte_css__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./components/buttons/SearchButton.svelte.css */ "./components/buttons/SearchButton.svelte.css");
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_components_buttons_SearchButton_svelte_css__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(_tmp_snowboard_build_154486hw7ZWDyDSn23_components_buttons_SearchButton_svelte_css__WEBPACK_IMPORTED_MODULE_3__);
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/components/buttons/SearchButton.svelte generated by Svelte v3.20.1 */
 
 
 
 
 
-
-function add_css() {
-	var style = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("style");
-	style.id = "svelte-pb04qa-style";
-	style.textContent = ".navbar-dropdown.svelte-pb04qa.svelte-pb04qa{width:380px}@media screen and (min-width: 1024px){.navbar-dropdown.svelte-pb04qa .navbar-item.svelte-pb04qa{padding-right:20px}}.navbar-dropdown .navbar-item{justify-content:space-between}.has-dark-background.svelte-pb04qa.svelte-pb04qa{background-color:#484848;border-color:#484848;color:#fff}.has-dark-background.svelte-pb04qa.svelte-pb04qa::placeholder{color:#ccc}";
-	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(document.head, style);
-}
 
 function get_each_context(ctx, list, i) {
 	const child_ctx = ctx.slice();
-	child_ctx[10] = list[i];
+	child_ctx[9] = list[i];
 	return child_ctx;
 }
 
-// (72:2) {#if query !== ''}
+// (71:2) {#if query !== ''}
 function create_if_block(ctx) {
 	let hr;
 	let t;
 	let each_1_anchor;
-	let each_value = /*items*/ ctx[4];
+	let each_value = /*items*/ ctx[3];
 	let each_blocks = [];
 
 	for (let i = 0; i < each_value.length; i += 1) {
@@ -2746,8 +3967,8 @@ function create_if_block(ctx) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, each_1_anchor, anchor);
 		},
 		p(ctx, dirty) {
-			if (dirty & /*joinHref, items, config, handleClick*/ 81) {
-				each_value = /*items*/ ctx[4];
+			if (dirty & /*items, handleClick*/ 40) {
+				each_value = /*items*/ ctx[3];
 				let i;
 
 				for (i = 0; i < each_value.length; i += 1) {
@@ -2778,15 +3999,15 @@ function create_if_block(ctx) {
 	};
 }
 
-// (74:4) {#each items as item}
+// (73:4) {#each items as item}
 function create_each_block(ctx) {
 	let a;
 	let span0;
-	let t0_value = /*item*/ ctx[10].title + "";
+	let t0_value = /*item*/ ctx[9].title + "";
 	let t0;
 	let t1;
 	let span1;
-	let t2_value = /*item*/ ctx[10].kind + "";
+	let t2_value = /*item*/ ctx[9].kind + "";
 	let t2;
 	let t3;
 	let a_href_value;
@@ -2802,11 +4023,11 @@ function create_each_block(ctx) {
 			t2 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t2_value);
 			t3 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(span1, "class", "tag");
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(span1, "is-primary", /*item*/ ctx[10].kind == "group");
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(span1, "is-info", /*item*/ ctx[10].kind == "resource");
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(span1, "is-success", /*item*/ ctx[10].kind == "transition");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(span1, "is-primary", /*item*/ ctx[9].kind == "group");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(span1, "is-info", /*item*/ ctx[9].kind == "resource");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(span1, "is-success", /*item*/ ctx[9].kind == "transition");
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "class", "navbar-item svelte-pb04qa");
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "href", a_href_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["joinHref"])(/*item*/ ctx[10].href, /*config*/ ctx[0].basePath));
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "href", a_href_value = /*item*/ ctx[9].href);
 		},
 		m(target, anchor, remount) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, a, anchor);
@@ -2817,25 +4038,25 @@ function create_each_block(ctx) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(span1, t2);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, t3);
 			if (remount) dispose();
-			dispose = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "click", !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(/*handleClick*/ ctx[6]));
+			dispose = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "click", !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(/*handleClick*/ ctx[5]));
 		},
 		p(ctx, dirty) {
-			if (dirty & /*items*/ 16 && t0_value !== (t0_value = /*item*/ ctx[10].title + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t0, t0_value);
-			if (dirty & /*items*/ 16 && t2_value !== (t2_value = /*item*/ ctx[10].kind + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t2, t2_value);
+			if (dirty & /*items*/ 8 && t0_value !== (t0_value = /*item*/ ctx[9].title + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t0, t0_value);
+			if (dirty & /*items*/ 8 && t2_value !== (t2_value = /*item*/ ctx[9].kind + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t2, t2_value);
 
-			if (dirty & /*items*/ 16) {
-				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(span1, "is-primary", /*item*/ ctx[10].kind == "group");
+			if (dirty & /*items*/ 8) {
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(span1, "is-primary", /*item*/ ctx[9].kind == "group");
 			}
 
-			if (dirty & /*items*/ 16) {
-				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(span1, "is-info", /*item*/ ctx[10].kind == "resource");
+			if (dirty & /*items*/ 8) {
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(span1, "is-info", /*item*/ ctx[9].kind == "resource");
 			}
 
-			if (dirty & /*items*/ 16) {
-				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(span1, "is-success", /*item*/ ctx[10].kind == "transition");
+			if (dirty & /*items*/ 8) {
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(span1, "is-success", /*item*/ ctx[9].kind == "transition");
 			}
 
-			if (dirty & /*items, config*/ 17 && a_href_value !== (a_href_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["joinHref"])(/*item*/ ctx[10].href, /*config*/ ctx[0].basePath))) {
+			if (dirty & /*items*/ 8 && a_href_value !== (a_href_value = /*item*/ ctx[9].href)) {
 				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "href", a_href_value);
 			}
 		},
@@ -2854,7 +4075,7 @@ function create_fragment(ctx) {
 	let input;
 	let t1;
 	let dispose;
-	let if_block = /*query*/ ctx[2] !== "" && create_if_block(ctx);
+	let if_block = /*query*/ ctx[1] !== "" && create_if_block(ctx);
 
 	return {
 		c() {
@@ -2870,7 +4091,7 @@ function create_fragment(ctx) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "class", "navbar-link is-arrowless");
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(input, "class", "input is-rounded svelte-pb04qa");
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(input, "placeholder", "Filter by path, method, and title...");
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(input, "has-dark-background", /*$darkMode*/ ctx[5]);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(input, "has-dark-background", /*$darkMode*/ ctx[4]);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div0, "class", "navbar-item svelte-pb04qa");
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div1, "class", "navbar-dropdown is-right svelte-pb04qa");
 		},
@@ -2880,31 +4101,31 @@ function create_fragment(ctx) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, div1, anchor);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div1, div0);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div0, input);
-			/*input_binding*/ ctx[8](input);
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(input, /*query*/ ctx[2]);
+			/*input_binding*/ ctx[7](input);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(input, /*query*/ ctx[1]);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div1, t1);
 			if (if_block) if_block.m(div1, null);
 			if (remount) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(dispose);
 
 			dispose = [
 				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a, "click", function () {
-					if (!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(/*toggleSearch*/ ctx[1])) /*toggleSearch*/ ctx[1].apply(this, arguments);
+					if (!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(/*toggleSearch*/ ctx[0])) /*toggleSearch*/ ctx[0].apply(this, arguments);
 				}),
-				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(input, "input", /*input_input_handler*/ ctx[9])
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(input, "input", /*input_input_handler*/ ctx[8])
 			];
 		},
 		p(new_ctx, [dirty]) {
 			ctx = new_ctx;
 
-			if (dirty & /*query*/ 4 && input.value !== /*query*/ ctx[2]) {
-				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(input, /*query*/ ctx[2]);
+			if (dirty & /*query*/ 2 && input.value !== /*query*/ ctx[1]) {
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(input, /*query*/ ctx[1]);
 			}
 
-			if (dirty & /*$darkMode*/ 32) {
-				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(input, "has-dark-background", /*$darkMode*/ ctx[5]);
+			if (dirty & /*$darkMode*/ 16) {
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(input, "has-dark-background", /*$darkMode*/ ctx[4]);
 			}
 
-			if (/*query*/ ctx[2] !== "") {
+			if (/*query*/ ctx[1] !== "") {
 				if (if_block) {
 					if_block.p(ctx, dirty);
 				} else {
@@ -2923,7 +4144,7 @@ function create_fragment(ctx) {
 			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a);
 			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t0);
 			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div1);
-			/*input_binding*/ ctx[8](null);
+			/*input_binding*/ ctx[7](null);
 			if (if_block) if_block.d();
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(dispose);
 		}
@@ -2932,9 +4153,8 @@ function create_fragment(ctx) {
 
 function instance($$self, $$props, $$invalidate) {
 	let $darkMode;
-	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())($$self, _lib_store__WEBPACK_IMPORTED_MODULE_2__["darkMode"], $$value => $$invalidate(5, $darkMode = $$value));
+	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())($$self, _lib_store__WEBPACK_IMPORTED_MODULE_2__["darkMode"], $$value => $$invalidate(4, $darkMode = $$value));
 	let { groups } = $$props;
-	let { config } = $$props;
 	let { toggleSearch } = $$props;
 	let query = "";
 	let searchInput;
@@ -2952,31 +4172,29 @@ function instance($$self, $$props, $$invalidate) {
 
 	function input_binding($$value) {
 		!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())[$$value ? "unshift" : "push"](() => {
-			$$invalidate(3, searchInput = $$value);
+			$$invalidate(2, searchInput = $$value);
 		});
 	}
 
 	function input_input_handler() {
 		query = this.value;
-		$$invalidate(2, query);
+		$$invalidate(1, query);
 	}
 
 	$$self.$set = $$props => {
-		if ("groups" in $$props) $$invalidate(7, groups = $$props.groups);
-		if ("config" in $$props) $$invalidate(0, config = $$props.config);
-		if ("toggleSearch" in $$props) $$invalidate(1, toggleSearch = $$props.toggleSearch);
+		if ("groups" in $$props) $$invalidate(6, groups = $$props.groups);
+		if ("toggleSearch" in $$props) $$invalidate(0, toggleSearch = $$props.toggleSearch);
 	};
 
 	let items;
 
 	$$self.$$.update = () => {
-		if ($$self.$$.dirty & /*query, groups*/ 132) {
-			$: $$invalidate(4, items = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["filter"])(query, groups));
+		if ($$self.$$.dirty & /*query, groups*/ 66) {
+			$: $$invalidate(3, items = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["filter"])(query, groups));
 		}
 	};
 
 	return [
-		config,
 		toggleSearch,
 		query,
 		searchInput,
@@ -2992,12 +4210,24 @@ function instance($$self, $$props, $$invalidate) {
 class SearchButton extends !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()) {
 	constructor(options) {
 		super();
-		if (!document.getElementById("svelte-pb04qa-style")) add_css();
-		!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(this, options, instance, create_fragment, !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()), { groups: 7, config: 0, toggleSearch: 1 });
+		!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(this, options, instance, create_fragment, !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()), { groups: 6, toggleSearch: 0 });
 	}
 }
 
 /* harmony default export */ __webpack_exports__["default"] = (SearchButton);
+
+
+
+/***/ }),
+
+/***/ "./components/buttons/SearchButton.svelte.css":
+/*!****************************************************!*\
+  !*** ./components/buttons/SearchButton.svelte.css ***!
+  \****************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+// extracted by mini-css-extract-plugin
 
 /***/ }),
 
@@ -3013,7 +4243,7 @@ __webpack_require__.r(__webpack_exports__);
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'snowboard-theme-helper'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 /* harmony import */ var _lib_store__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../lib/store */ "./lib/store.js");
-/* tmp/snowboard-build-31063aMtH15CbmWUR/components/buttons/ThemeButton.svelte generated by Svelte v3.20.1 */
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/components/buttons/ThemeButton.svelte generated by Svelte v3.20.1 */
 
 
 
@@ -3109,15 +4339,10 @@ class ThemeButton extends !(function webpackMissingModule() { var e = new Error(
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
-/* tmp/snowboard-build-31063aMtH15CbmWUR/components/buttons/ToggleButton.svelte generated by Svelte v3.20.1 */
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_components_buttons_ToggleButton_svelte_css__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./components/buttons/ToggleButton.svelte.css */ "./components/buttons/ToggleButton.svelte.css");
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_components_buttons_ToggleButton_svelte_css__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(_tmp_snowboard_build_154486hw7ZWDyDSn23_components_buttons_ToggleButton_svelte_css__WEBPACK_IMPORTED_MODULE_1__);
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/components/buttons/ToggleButton.svelte generated by Svelte v3.20.1 */
 
-
-function add_css() {
-	var style = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("style");
-	style.id = "svelte-o7a14x-style";
-	style.textContent = ".toggle-icon.svelte-o7a14x{cursor:pointer}";
-	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(document.head, style);
-}
 
 function create_fragment(ctx) {
 	let span;
@@ -3184,7 +4409,6 @@ function instance($$self, $$props, $$invalidate) {
 class ToggleButton extends !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()) {
 	constructor(options) {
 		super();
-		if (!document.getElementById("svelte-o7a14x-style")) add_css();
 
 		!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(this, options, instance, create_fragment, !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()), {
 			show: 0,
@@ -3195,6 +4419,19 @@ class ToggleButton extends !(function webpackMissingModule() { var e = new Error
 }
 
 /* harmony default export */ __webpack_exports__["default"] = (ToggleButton);
+
+
+
+/***/ }),
+
+/***/ "./components/buttons/ToggleButton.svelte.css":
+/*!****************************************************!*\
+  !*** ./components/buttons/ToggleButton.svelte.css ***!
+  \****************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+// extracted by mini-css-extract-plugin
 
 /***/ }),
 
@@ -3209,19 +4446,13 @@ class ToggleButton extends !(function webpackMissingModule() { var e = new Error
 __webpack_require__.r(__webpack_exports__);
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 /* harmony import */ var _CodeBlock_svelte__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../CodeBlock.svelte */ "./components/CodeBlock.svelte");
-/* tmp/snowboard-build-31063aMtH15CbmWUR/components/panels/CodePanel.svelte generated by Svelte v3.20.1 */
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_components_panels_CodePanel_svelte_css__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./components/panels/CodePanel.svelte.css */ "./components/panels/CodePanel.svelte.css");
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_components_panels_CodePanel_svelte_css__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(_tmp_snowboard_build_154486hw7ZWDyDSn23_components_panels_CodePanel_svelte_css__WEBPACK_IMPORTED_MODULE_2__);
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/components/panels/CodePanel.svelte generated by Svelte v3.20.1 */
 
 
 
 
-function add_css() {
-	var style = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("style");
-	style.id = "svelte-15v28ah-style";
-	style.textContent = ".tab-content.svelte-15v28ah{display:none}.tab-content.is-active.svelte-15v28ah{display:block}";
-	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(document.head, style);
-}
-
-// (32:0) {#if body || schema}
 function create_if_block(ctx) {
 	let div2;
 	let div0;
@@ -3541,7 +4772,6 @@ function instance($$self, $$props, $$invalidate) {
 class CodePanel extends !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()) {
 	constructor(options) {
 		super();
-		if (!document.getElementById("svelte-15v28ah-style")) add_css();
 
 		!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(this, options, instance, create_fragment, !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()), {
 			contentType: 0,
@@ -3559,6 +4789,19 @@ class CodePanel extends !(function webpackMissingModule() { var e = new Error("C
 
 /* harmony default export */ __webpack_exports__["default"] = (CodePanel);
 
+
+
+/***/ }),
+
+/***/ "./components/panels/CodePanel.svelte.css":
+/*!************************************************!*\
+  !*** ./components/panels/CodePanel.svelte.css ***!
+  \************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+// extracted by mini-css-extract-plugin
+
 /***/ }),
 
 /***/ "./components/panels/CollapsiblePanel.svelte":
@@ -3573,18 +4816,12 @@ __webpack_require__.r(__webpack_exports__);
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 /* harmony import */ var _lib_store__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../lib/store */ "./lib/store.js");
 /* harmony import */ var _buttons_ToggleButton_svelte__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../buttons/ToggleButton.svelte */ "./components/buttons/ToggleButton.svelte");
-/* tmp/snowboard-build-31063aMtH15CbmWUR/components/panels/CollapsiblePanel.svelte generated by Svelte v3.20.1 */
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_components_panels_CollapsiblePanel_svelte_css__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./components/panels/CollapsiblePanel.svelte.css */ "./components/panels/CollapsiblePanel.svelte.css");
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_components_panels_CollapsiblePanel_svelte_css__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(_tmp_snowboard_build_154486hw7ZWDyDSn23_components_panels_CollapsiblePanel_svelte_css__WEBPACK_IMPORTED_MODULE_3__);
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/components/panels/CollapsiblePanel.svelte generated by Svelte v3.20.1 */
 
 
 
-
-
-function add_css() {
-	var style = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("style");
-	style.id = "svelte-1uaw9yz-style";
-	style.textContent = ".panel-section.svelte-1uaw9yz.svelte-1uaw9yz{padding:1em}.panel-button.svelte-1uaw9yz.svelte-1uaw9yz{border-radius:4px}.is-darkmode.svelte-1uaw9yz .panel-heading.svelte-1uaw9yz{border:1px solid #363636}.is-darkmode.svelte-1uaw9yz .panel-section.svelte-1uaw9yz{background-color:#222 !important;border-color:#333}";
-	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(document.head, style);
-}
 
 const get_body_slot_changes = dirty => ({});
 const get_body_slot_context = ctx => ({});
@@ -3735,12 +4972,24 @@ function instance($$self, $$props, $$invalidate) {
 class CollapsiblePanel extends !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()) {
 	constructor(options) {
 		super();
-		if (!document.getElementById("svelte-1uaw9yz-style")) add_css();
 		!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(this, options, instance, create_fragment, !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()), { show: 0 });
 	}
 }
 
 /* harmony default export */ __webpack_exports__["default"] = (CollapsiblePanel);
+
+
+
+/***/ }),
+
+/***/ "./components/panels/CollapsiblePanel.svelte.css":
+/*!*******************************************************!*\
+  !*** ./components/panels/CollapsiblePanel.svelte.css ***!
+  \*******************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+// extracted by mini-css-extract-plugin
 
 /***/ }),
 
@@ -3755,6 +5004,7 @@ class CollapsiblePanel extends !(function webpackMissingModule() { var e = new E
 __webpack_require__.r(__webpack_exports__);
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'lodash'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
+!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'querystringify'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'snowboard-theme-helper'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 /* harmony import */ var _lib_store__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../lib/store */ "./lib/store.js");
@@ -3763,7 +5013,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _buttons_LoginButton_svelte__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../buttons/LoginButton.svelte */ "./components/buttons/LoginButton.svelte");
 /* harmony import */ var _FieldSwitch_svelte__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../FieldSwitch.svelte */ "./components/FieldSwitch.svelte");
 /* harmony import */ var _CodeBlock_svelte__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../CodeBlock.svelte */ "./components/CodeBlock.svelte");
-/* tmp/snowboard-build-31063aMtH15CbmWUR/components/panels/PlaygroundPanel.svelte generated by Svelte v3.20.1 */
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_components_panels_PlaygroundPanel_svelte_css__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./components/panels/PlaygroundPanel.svelte.css */ "./components/panels/PlaygroundPanel.svelte.css");
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_components_panels_PlaygroundPanel_svelte_css__WEBPACK_IMPORTED_MODULE_7___default = /*#__PURE__*/__webpack_require__.n(_tmp_snowboard_build_154486hw7ZWDyDSn23_components_panels_PlaygroundPanel_svelte_css__WEBPACK_IMPORTED_MODULE_7__);
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/components/panels/PlaygroundPanel.svelte generated by Svelte v3.20.1 */
 
 
 const { Boolean: Boolean_1 } = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
@@ -3779,37 +5031,31 @@ const { Boolean: Boolean_1 } = !(function webpackMissingModule() { var e = new E
 
 
 
-function add_css() {
-	var style = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("style");
-	style.id = "svelte-bi81cz-style";
-	style.textContent = ".content-header.svelte-bi81cz{margin-top:30px}.section-custom.svelte-bi81cz{margin-bottom:30px}.has-dark-background.svelte-bi81cz{background-color:#484848;border-color:#484848;color:#fff}.curl-snippet.svelte-bi81cz{margin-bottom:30px}.button-url.svelte-bi81cz{justify-content:start}";
-	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(document.head, style);
-}
 
 function get_each_context(ctx, list, i) {
 	const child_ctx = ctx.slice();
-	child_ctx[33] = list[i][0];
-	child_ctx[34] = list[i][1];
+	child_ctx[34] = list[i][0];
+	child_ctx[35] = list[i][1];
 	return child_ctx;
 }
 
 function get_each_context_1(ctx, list, i) {
 	const child_ctx = ctx.slice();
-	child_ctx[37] = list[i];
-	child_ctx[38] = list;
-	child_ctx[39] = i;
+	child_ctx[38] = list[i];
+	child_ctx[39] = list;
+	child_ctx[40] = i;
 	return child_ctx;
 }
 
 function get_each_context_2(ctx, list, i) {
 	const child_ctx = ctx.slice();
-	child_ctx[40] = list[i];
-	child_ctx[41] = list;
-	child_ctx[42] = i;
+	child_ctx[41] = list[i];
+	child_ctx[42] = list;
+	child_ctx[43] = i;
 	return child_ctx;
 }
 
-// (214:2) <span slot="heading">
+// (228:2) <span slot="heading">
 function create_heading_slot(ctx) {
 	let span;
 
@@ -3828,7 +5074,7 @@ function create_heading_slot(ctx) {
 	};
 }
 
-// (223:8) {:else}
+// (237:8) {:else}
 function create_else_block_3(ctx) {
 	let a;
 	let span0;
@@ -3836,11 +5082,11 @@ function create_else_block_3(ctx) {
 	let t0;
 	let t1;
 	let span1;
-	let t2_value = /*fullUrl*/ ctx[7].origin + "";
+	let t2_value = /*fullUrl*/ ctx[8].origin + "";
 	let t2;
 	let t3;
 	let span2;
-	let t4_value = /*fullUrl*/ ctx[7].pathname + "";
+	let t4_value = /*fullUrl*/ ctx[8].pathname + "";
 	let t4;
 	let dispose;
 
@@ -3875,8 +5121,8 @@ function create_else_block_3(ctx) {
 		},
 		p(ctx, dirty) {
 			if (dirty[0] & /*transition*/ 1 && t0_value !== (t0_value = /*transition*/ ctx[0].method + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t0, t0_value);
-			if (dirty[0] & /*fullUrl*/ 128 && t2_value !== (t2_value = /*fullUrl*/ ctx[7].origin + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t2, t2_value);
-			if (dirty[0] & /*fullUrl*/ 128 && t4_value !== (t4_value = /*fullUrl*/ ctx[7].pathname + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t4, t4_value);
+			if (dirty[0] & /*fullUrl*/ 256 && t2_value !== (t2_value = /*fullUrl*/ ctx[8].origin + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t2, t2_value);
+			if (dirty[0] & /*fullUrl*/ 256 && t4_value !== (t4_value = /*fullUrl*/ ctx[8].pathname + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t4, t4_value);
 		},
 		d(detaching) {
 			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a);
@@ -3885,7 +5131,7 @@ function create_else_block_3(ctx) {
 	};
 }
 
-// (218:8) {#if copying}
+// (232:8) {#if copying}
 function create_if_block_7(ctx) {
 	let button;
 
@@ -3905,13 +5151,13 @@ function create_if_block_7(ctx) {
 	};
 }
 
-// (247:27) 
+// (261:27) 
 function create_if_block_6(ctx) {
 	let current;
 
 	const loginbutton = new _buttons_LoginButton_svelte__WEBPACK_IMPORTED_MODULE_4__["default"]({
 			props: {
-				authOptions: /*environment*/ ctx[6].auth.options,
+				authOptions: /*environment*/ ctx[7].auth.options,
 				codeChallenge: /*challengePair*/ ctx[13].codeChallenge,
 				codeState: /*codeState*/ ctx[14]
 			}
@@ -3927,7 +5173,7 @@ function create_if_block_6(ctx) {
 		},
 		p(ctx, dirty) {
 			const loginbutton_changes = {};
-			if (dirty[0] & /*environment*/ 64) loginbutton_changes.authOptions = /*environment*/ ctx[6].auth.options;
+			if (dirty[0] & /*environment*/ 128) loginbutton_changes.authOptions = /*environment*/ ctx[7].auth.options;
 			loginbutton.$set(loginbutton_changes);
 		},
 		i(local) {
@@ -3945,7 +5191,7 @@ function create_if_block_6(ctx) {
 	};
 }
 
-// (240:8) {#if isSendEnabled}
+// (254:8) {#if isSendEnabled}
 function create_if_block_5(ctx) {
 	let button;
 	let dispose;
@@ -3974,7 +5220,7 @@ function create_if_block_5(ctx) {
 	};
 }
 
-// (282:8) {:else}
+// (296:8) {:else}
 function create_else_block_2(ctx) {
 	let each_1_anchor;
 	let current;
@@ -4058,7 +5304,7 @@ function create_else_block_2(ctx) {
 	};
 }
 
-// (278:8) {#if requestParameters.length === 0}
+// (292:8) {#if requestParameters.length === 0}
 function create_if_block_4(ctx) {
 	let p;
 
@@ -4080,32 +5326,32 @@ function create_if_block_4(ctx) {
 	};
 }
 
-// (283:10) {#each requestParameters as param}
+// (297:10) {#each requestParameters as param}
 function create_each_block_2(ctx) {
 	let updating_used;
 	let updating_value;
 	let current;
 
 	function fieldswitch_used_binding(value) {
-		/*fieldswitch_used_binding*/ ctx[26].call(null, value, /*param*/ ctx[40]);
+		/*fieldswitch_used_binding*/ ctx[27].call(null, value, /*param*/ ctx[41]);
 	}
 
 	function fieldswitch_value_binding(value) {
-		/*fieldswitch_value_binding*/ ctx[27].call(null, value, /*param*/ ctx[40]);
+		/*fieldswitch_value_binding*/ ctx[28].call(null, value, /*param*/ ctx[41]);
 	}
 
 	let fieldswitch_props = {
-		name: /*param*/ ctx[40].name,
-		required: /*param*/ ctx[40].required,
+		name: /*param*/ ctx[41].name,
+		required: /*param*/ ctx[41].required,
 		rounded: false
 	};
 
-	if (/*param*/ ctx[40].used !== void 0) {
-		fieldswitch_props.used = /*param*/ ctx[40].used;
+	if (/*param*/ ctx[41].used !== void 0) {
+		fieldswitch_props.used = /*param*/ ctx[41].used;
 	}
 
-	if (/*param*/ ctx[40].example !== void 0) {
-		fieldswitch_props.value = /*param*/ ctx[40].example;
+	if (/*param*/ ctx[41].example !== void 0) {
+		fieldswitch_props.value = /*param*/ ctx[41].example;
 	}
 
 	const fieldswitch = new _FieldSwitch_svelte__WEBPACK_IMPORTED_MODULE_5__["default"]({ props: fieldswitch_props });
@@ -4123,18 +5369,18 @@ function create_each_block_2(ctx) {
 		p(new_ctx, dirty) {
 			ctx = new_ctx;
 			const fieldswitch_changes = {};
-			if (dirty[0] & /*requestParameters*/ 32) fieldswitch_changes.name = /*param*/ ctx[40].name;
-			if (dirty[0] & /*requestParameters*/ 32) fieldswitch_changes.required = /*param*/ ctx[40].required;
+			if (dirty[0] & /*requestParameters*/ 32) fieldswitch_changes.name = /*param*/ ctx[41].name;
+			if (dirty[0] & /*requestParameters*/ 32) fieldswitch_changes.required = /*param*/ ctx[41].required;
 
 			if (!updating_used && dirty[0] & /*requestParameters*/ 32) {
 				updating_used = true;
-				fieldswitch_changes.used = /*param*/ ctx[40].used;
+				fieldswitch_changes.used = /*param*/ ctx[41].used;
 				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(() => updating_used = false);
 			}
 
 			if (!updating_value && dirty[0] & /*requestParameters*/ 32) {
 				updating_value = true;
-				fieldswitch_changes.value = /*param*/ ctx[40].example;
+				fieldswitch_changes.value = /*param*/ ctx[41].example;
 				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(() => updating_value = false);
 			}
 
@@ -4155,11 +5401,11 @@ function create_each_block_2(ctx) {
 	};
 }
 
-// (299:8) {:else}
+// (313:8) {:else}
 function create_else_block_1(ctx) {
 	let each_1_anchor;
 	let current;
-	let each_value_1 = /*requestHeaders*/ ctx[10];
+	let each_value_1 = /*requestHeaders*/ ctx[6];
 	let each_blocks = [];
 
 	for (let i = 0; i < each_value_1.length; i += 1) {
@@ -4187,8 +5433,8 @@ function create_else_block_1(ctx) {
 			current = true;
 		},
 		p(ctx, dirty) {
-			if (dirty[0] & /*requestHeaders*/ 1024) {
-				each_value_1 = /*requestHeaders*/ ctx[10];
+			if (dirty[0] & /*requestHeaders*/ 64) {
+				each_value_1 = /*requestHeaders*/ ctx[6];
 				let i;
 
 				for (i = 0; i < each_value_1.length; i += 1) {
@@ -4239,7 +5485,7 @@ function create_else_block_1(ctx) {
 	};
 }
 
-// (295:8) {#if requestHeaders.length === 0}
+// (309:8) {#if requestHeaders.length === 0}
 function create_if_block_3(ctx) {
 	let p;
 
@@ -4261,32 +5507,32 @@ function create_if_block_3(ctx) {
 	};
 }
 
-// (300:10) {#each requestHeaders as header}
+// (314:10) {#each requestHeaders as header}
 function create_each_block_1(ctx) {
 	let updating_used;
 	let updating_value;
 	let current;
 
 	function fieldswitch_used_binding_1(value) {
-		/*fieldswitch_used_binding_1*/ ctx[28].call(null, value, /*header*/ ctx[37]);
+		/*fieldswitch_used_binding_1*/ ctx[29].call(null, value, /*header*/ ctx[38]);
 	}
 
 	function fieldswitch_value_binding_1(value) {
-		/*fieldswitch_value_binding_1*/ ctx[29].call(null, value, /*header*/ ctx[37]);
+		/*fieldswitch_value_binding_1*/ ctx[30].call(null, value, /*header*/ ctx[38]);
 	}
 
 	let fieldswitch_props = {
-		name: /*header*/ ctx[37].name,
-		required: /*header*/ ctx[37].required,
+		name: /*header*/ ctx[38].name,
+		required: /*header*/ ctx[38].required,
 		rounded: true
 	};
 
-	if (/*header*/ ctx[37].used !== void 0) {
-		fieldswitch_props.used = /*header*/ ctx[37].used;
+	if (/*header*/ ctx[38].used !== void 0) {
+		fieldswitch_props.used = /*header*/ ctx[38].used;
 	}
 
-	if (/*header*/ ctx[37].example !== void 0) {
-		fieldswitch_props.value = /*header*/ ctx[37].example;
+	if (/*header*/ ctx[38].example !== void 0) {
+		fieldswitch_props.value = /*header*/ ctx[38].example;
 	}
 
 	const fieldswitch = new _FieldSwitch_svelte__WEBPACK_IMPORTED_MODULE_5__["default"]({ props: fieldswitch_props });
@@ -4304,18 +5550,18 @@ function create_each_block_1(ctx) {
 		p(new_ctx, dirty) {
 			ctx = new_ctx;
 			const fieldswitch_changes = {};
-			if (dirty[0] & /*requestHeaders*/ 1024) fieldswitch_changes.name = /*header*/ ctx[37].name;
-			if (dirty[0] & /*requestHeaders*/ 1024) fieldswitch_changes.required = /*header*/ ctx[37].required;
+			if (dirty[0] & /*requestHeaders*/ 64) fieldswitch_changes.name = /*header*/ ctx[38].name;
+			if (dirty[0] & /*requestHeaders*/ 64) fieldswitch_changes.required = /*header*/ ctx[38].required;
 
-			if (!updating_used && dirty[0] & /*requestHeaders*/ 1024) {
+			if (!updating_used && dirty[0] & /*requestHeaders*/ 64) {
 				updating_used = true;
-				fieldswitch_changes.used = /*header*/ ctx[37].used;
+				fieldswitch_changes.used = /*header*/ ctx[38].used;
 				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(() => updating_used = false);
 			}
 
-			if (!updating_value && dirty[0] & /*requestHeaders*/ 1024) {
+			if (!updating_value && dirty[0] & /*requestHeaders*/ 64) {
 				updating_value = true;
-				fieldswitch_changes.value = /*header*/ ctx[37].example;
+				fieldswitch_changes.value = /*header*/ ctx[38].example;
 				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(() => updating_value = false);
 			}
 
@@ -4336,7 +5582,7 @@ function create_each_block_1(ctx) {
 	};
 }
 
-// (318:8) {:else}
+// (332:8) {:else}
 function create_else_block(ctx) {
 	let p;
 
@@ -4356,7 +5602,7 @@ function create_else_block(ctx) {
 	};
 }
 
-// (312:8) {#if isAllowBody(transition.method)}
+// (326:8) {#if isAllowBody(transition.method)}
 function create_if_block_2(ctx) {
 	let textarea;
 	let dispose;
@@ -4372,7 +5618,7 @@ function create_if_block_2(ctx) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, textarea, anchor);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(textarea, /*requestBody*/ ctx[4]);
 			if (remount) dispose();
-			dispose = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(textarea, "input", /*textarea_input_handler*/ ctx[30]);
+			dispose = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(textarea, "input", /*textarea_input_handler*/ ctx[31]);
 		},
 		p(ctx, dirty) {
 			if (dirty[0] & /*requestBody*/ 16) {
@@ -4390,14 +5636,14 @@ function create_if_block_2(ctx) {
 	};
 }
 
-// (359:4) {:catch error}
+// (373:4) {:catch error}
 function create_catch_block(ctx) {
 	let div1;
 	let section1;
 	let section0;
 	let div0;
 	let p;
-	let t_value = /*error*/ ctx[32] + "";
+	let t_value = /*error*/ ctx[33] + "";
 	let t;
 
 	return {
@@ -4423,7 +5669,7 @@ function create_catch_block(ctx) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(p, t);
 		},
 		p(ctx, dirty) {
-			if (dirty[0] & /*response*/ 8 && t_value !== (t_value = /*error*/ ctx[32] + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t, t_value);
+			if (dirty[0] & /*response*/ 8 && t_value !== (t_value = /*error*/ ctx[33] + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t, t_value);
 		},
 		i: !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()),
 		o: !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()),
@@ -4433,9 +5679,9 @@ function create_catch_block(ctx) {
 	};
 }
 
-// (332:4) {:then value}
+// (346:4) {:then value}
 function create_then_block(ctx) {
-	let show_if = Object.keys(/*value*/ ctx[31] || {}).length > 0;
+	let show_if = Object.keys(/*value*/ ctx[32] || {}).length > 0;
 	let if_block_anchor;
 	let current;
 	let if_block = show_if && create_if_block(ctx);
@@ -4451,7 +5697,7 @@ function create_then_block(ctx) {
 			current = true;
 		},
 		p(ctx, dirty) {
-			if (dirty[0] & /*response*/ 8) show_if = Object.keys(/*value*/ ctx[31] || {}).length > 0;
+			if (dirty[0] & /*response*/ 8) show_if = Object.keys(/*value*/ ctx[32] || {}).length > 0;
 
 			if (show_if) {
 				if (if_block) {
@@ -4489,21 +5735,21 @@ function create_then_block(ctx) {
 	};
 }
 
-// (333:6) {#if Object.keys(value || {}).length > 0}
+// (347:6) {#if Object.keys(value || {}).length > 0}
 function create_if_block(ctx) {
 	let div1;
 	let section1;
 	let section0;
 	let div0;
 	let h1;
-	let t0_value = /*value*/ ctx[31].status + "";
+	let t0_value = /*value*/ ctx[32].status + "";
 	let t0;
 	let t1;
-	let t2_value = /*value*/ ctx[31].statusText + "";
+	let t2_value = /*value*/ ctx[32].statusText + "";
 	let t2;
 	let section1_class_value;
 	let t3;
-	let show_if = Object.keys(/*value*/ ctx[31].headers).length > 0;
+	let show_if = Object.keys(/*value*/ ctx[32].headers).length > 0;
 	let current;
 	let if_block = show_if && create_if_block_1(ctx);
 
@@ -4522,7 +5768,7 @@ function create_if_block(ctx) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(h1, "class", "title");
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div0, "class", "container has-text-centered");
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(section0, "class", "hero-body hero-small");
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(section1, "class", section1_class_value = "hero hero-rounded " + Object(_lib_helper__WEBPACK_IMPORTED_MODULE_2__["colorize"])(/*value*/ ctx[31].status) + " svelte-bi81cz");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(section1, "class", section1_class_value = "hero hero-rounded " + Object(_lib_helper__WEBPACK_IMPORTED_MODULE_2__["colorize"])(/*value*/ ctx[32].status) + " svelte-bi81cz");
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div1, "class", "small-section");
 		},
 		m(target, anchor) {
@@ -4539,14 +5785,14 @@ function create_if_block(ctx) {
 			current = true;
 		},
 		p(ctx, dirty) {
-			if ((!current || dirty[0] & /*response*/ 8) && t0_value !== (t0_value = /*value*/ ctx[31].status + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t0, t0_value);
-			if ((!current || dirty[0] & /*response*/ 8) && t2_value !== (t2_value = /*value*/ ctx[31].statusText + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t2, t2_value);
+			if ((!current || dirty[0] & /*response*/ 8) && t0_value !== (t0_value = /*value*/ ctx[32].status + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t0, t0_value);
+			if ((!current || dirty[0] & /*response*/ 8) && t2_value !== (t2_value = /*value*/ ctx[32].statusText + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t2, t2_value);
 
-			if (!current || dirty[0] & /*response*/ 8 && section1_class_value !== (section1_class_value = "hero hero-rounded " + Object(_lib_helper__WEBPACK_IMPORTED_MODULE_2__["colorize"])(/*value*/ ctx[31].status) + " svelte-bi81cz")) {
+			if (!current || dirty[0] & /*response*/ 8 && section1_class_value !== (section1_class_value = "hero hero-rounded " + Object(_lib_helper__WEBPACK_IMPORTED_MODULE_2__["colorize"])(/*value*/ ctx[32].status) + " svelte-bi81cz")) {
 				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(section1, "class", section1_class_value);
 			}
 
-			if (dirty[0] & /*response*/ 8) show_if = Object.keys(/*value*/ ctx[31].headers).length > 0;
+			if (dirty[0] & /*response*/ 8) show_if = Object.keys(/*value*/ ctx[32].headers).length > 0;
 
 			if (show_if) {
 				if (if_block) {
@@ -4584,13 +5830,13 @@ function create_if_block(ctx) {
 	};
 }
 
-// (343:10) {#if Object.keys(value.headers).length > 0}
+// (357:10) {#if Object.keys(value.headers).length > 0}
 function create_if_block_1(ctx) {
 	let div1;
 	let div0;
 	let t;
 	let current;
-	let each_value = Object.entries(/*value*/ ctx[31].headers);
+	let each_value = Object.entries(/*value*/ ctx[32].headers);
 	let each_blocks = [];
 
 	for (let i = 0; i < each_value.length; i += 1) {
@@ -4599,8 +5845,8 @@ function create_if_block_1(ctx) {
 
 	const codeblock = new _CodeBlock_svelte__WEBPACK_IMPORTED_MODULE_6__["default"]({
 			props: {
-				type: contentType(/*value*/ ctx[31].headers),
-				body: /*value*/ ctx[31].data
+				type: contentType(/*value*/ ctx[32].headers),
+				body: /*value*/ ctx[32].data
 			}
 		});
 
@@ -4632,7 +5878,7 @@ function create_if_block_1(ctx) {
 		},
 		p(ctx, dirty) {
 			if (dirty[0] & /*response*/ 8) {
-				each_value = Object.entries(/*value*/ ctx[31].headers);
+				each_value = Object.entries(/*value*/ ctx[32].headers);
 				let i;
 
 				for (i = 0; i < each_value.length; i += 1) {
@@ -4655,8 +5901,8 @@ function create_if_block_1(ctx) {
 			}
 
 			const codeblock_changes = {};
-			if (dirty[0] & /*response*/ 8) codeblock_changes.type = contentType(/*value*/ ctx[31].headers);
-			if (dirty[0] & /*response*/ 8) codeblock_changes.body = /*value*/ ctx[31].data;
+			if (dirty[0] & /*response*/ 8) codeblock_changes.type = contentType(/*value*/ ctx[32].headers);
+			if (dirty[0] & /*response*/ 8) codeblock_changes.body = /*value*/ ctx[32].data;
 			codeblock.$set(codeblock_changes);
 		},
 		i(local) {
@@ -4676,14 +5922,14 @@ function create_if_block_1(ctx) {
 	};
 }
 
-// (346:16) {#each Object.entries(value.headers) as [key, val]}
+// (360:16) {#each Object.entries(value.headers) as [key, val]}
 function create_each_block(ctx) {
 	let p;
 	let span;
-	let t0_value = /*key*/ ctx[33] + "";
+	let t0_value = /*key*/ ctx[34] + "";
 	let t0;
 	let t1;
-	let t2_value = /*val*/ ctx[34] + "";
+	let t2_value = /*val*/ ctx[35] + "";
 	let t2;
 	let t3;
 
@@ -4707,8 +5953,8 @@ function create_each_block(ctx) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(p, t3);
 		},
 		p(ctx, dirty) {
-			if (dirty[0] & /*response*/ 8 && t0_value !== (t0_value = /*key*/ ctx[33] + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t0, t0_value);
-			if (dirty[0] & /*response*/ 8 && t2_value !== (t2_value = /*val*/ ctx[34] + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t2, t2_value);
+			if (dirty[0] & /*response*/ 8 && t0_value !== (t0_value = /*key*/ ctx[34] + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t0, t0_value);
+			if (dirty[0] & /*response*/ 8 && t2_value !== (t2_value = /*val*/ ctx[35] + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t2, t2_value);
 		},
 		d(detaching) {
 			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(p);
@@ -4716,7 +5962,7 @@ function create_each_block(ctx) {
 	};
 }
 
-// (326:21)        <div class="section has-text-centered">         <span class="icon is-medium has-text-danger">           <i class="fas fa-2x fa-spinner fa-pulse" />         </span>       </div>     {:then value}
+// (340:21)        <div class="section has-text-centered">         <span class="icon is-medium has-text-danger">           <i class="fas fa-2x fa-spinner fa-pulse" />         </span>       </div>     {:then value}
 function create_pending_block(ctx) {
 	let div;
 
@@ -4738,7 +5984,7 @@ function create_pending_block(ctx) {
 	};
 }
 
-// (215:2) <div slot="body">
+// (229:2) <div slot="body">
 function create_body_slot(ctx) {
 	let div0;
 	let div3;
@@ -4791,8 +6037,8 @@ function create_body_slot(ctx) {
 	const if_blocks = [];
 
 	function select_block_type_1(ctx, dirty) {
-		if (/*isSendEnabled*/ ctx[9]) return 0;
-		if (/*isOauth2*/ ctx[8]) return 1;
+		if (/*isSendEnabled*/ ctx[10]) return 0;
+		if (/*isOauth2*/ ctx[9]) return 1;
 		return -1;
 	}
 
@@ -4814,7 +6060,7 @@ function create_body_slot(ctx) {
 	const if_blocks_2 = [];
 
 	function select_block_type_3(ctx, dirty) {
-		if (/*requestHeaders*/ ctx[10].length === 0) return 0;
+		if (/*requestHeaders*/ ctx[6].length === 0) return 0;
 		return 1;
 	}
 
@@ -4837,8 +6083,8 @@ function create_body_slot(ctx) {
 		pending: create_pending_block,
 		then: create_then_block,
 		catch: create_catch_block,
-		value: 31,
-		error: 32,
+		value: 32,
+		error: 33,
 		blocks: [,,,]
 	};
 
@@ -4948,9 +6194,9 @@ function create_body_slot(ctx) {
 			if (remount) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(dispose);
 
 			dispose = [
-				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a0, "click", /*click_handler*/ ctx[23]),
-				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a1, "click", /*click_handler_1*/ ctx[24]),
-				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a2, "click", /*click_handler_2*/ ctx[25])
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a0, "click", /*click_handler*/ ctx[24]),
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a1, "click", /*click_handler_1*/ ctx[25]),
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(a2, "click", /*click_handler_2*/ ctx[26])
 			];
 		},
 		p(new_ctx, dirty) {
@@ -5093,7 +6339,7 @@ function create_body_slot(ctx) {
 				
 			} else {
 				const child_ctx = ctx.slice();
-				child_ctx[31] = info.resolved;
+				child_ctx[32] = info.resolved;
 				info.block.p(child_ctx, dirty);
 			}
 		},
@@ -5136,7 +6382,7 @@ function create_body_slot(ctx) {
 	};
 }
 
-// (213:0) <CollapsiblePanel {show}>
+// (227:0) <CollapsiblePanel {show}>
 function create_default_slot(ctx) {
 	let t;
 	let current;
@@ -5183,7 +6429,7 @@ function create_fragment(ctx) {
 		p(ctx, dirty) {
 			const collapsiblepanel_changes = {};
 
-			if (dirty[0] & /*response, requestTab, requestBody, $darkMode, transition, requestHeaders, requestParameters, curl, isSendEnabled, environment, isOauth2, copying, fullUrl*/ 8191 | dirty[1] & /*$$scope*/ 4096) {
+			if (dirty[0] & /*response, requestTab, requestBody, $darkMode, transition, requestHeaders, requestParameters, curl, isSendEnabled, environment, isOauth2, copying, fullUrl*/ 8191 | dirty[1] & /*$$scope*/ 8192) {
 				collapsiblepanel_changes.$$scope = { dirty, ctx };
 			}
 
@@ -5250,8 +6496,8 @@ function instance($$self, $$props, $$invalidate) {
 	let $env;
 	let $token;
 	let $darkMode;
-	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())($$self, _lib_store__WEBPACK_IMPORTED_MODULE_1__["env"], $$value => $$invalidate(19, $env = $$value));
-	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())($$self, _lib_store__WEBPACK_IMPORTED_MODULE_1__["token"], $$value => $$invalidate(21, $token = $$value));
+	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())($$self, _lib_store__WEBPACK_IMPORTED_MODULE_1__["env"], $$value => $$invalidate(20, $env = $$value));
+	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())($$self, _lib_store__WEBPACK_IMPORTED_MODULE_1__["token"], $$value => $$invalidate(22, $token = $$value));
 	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())($$self, _lib_store__WEBPACK_IMPORTED_MODULE_1__["darkMode"], $$value => $$invalidate(12, $darkMode = $$value));
 	let { transition } = $$props;
 	let { config } = $$props;
@@ -5266,6 +6512,16 @@ function instance($$self, $$props, $$invalidate) {
 		const param = Object.assign({}, val);
 		param.used = true;
 		return param;
+	});
+
+	let requestHeaders = prepareHeaders(config.playground.environments[$env], transition.transactions[0].request.headers);
+	let prev = $env;
+
+	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(() => {
+		if (prev != $env) {
+			prev = $env;
+			$$invalidate(6, requestHeaders = prepareHeaders(config.playground.environments[$env], transition.transactions[0].request.headers));
+		}
 	});
 
 	function handleCopy() {
@@ -5305,13 +6561,14 @@ function instance($$self, $$props, $$invalidate) {
 
 		if (Object(_lib_helper__WEBPACK_IMPORTED_MODULE_2__["isAuth"])(environment, "oauth2")) {
 			const index = headerIndex(mapHeaders, "authorization");
+			const example = $token ? `Bearer ${_lib_store__WEBPACK_IMPORTED_MODULE_1__["token"]}` : "";
 
 			if (mapHeaders[index]) {
-				mapHeaders[index].example = `Bearer ${$token}`;
+				mapHeaders[index].example = example;
 			} else {
 				mapHeaders.push({
 					name: "Authorization",
-					example: `Bearer ${$token}`,
+					example,
 					used: true
 				});
 			}
@@ -5365,12 +6622,12 @@ function instance($$self, $$props, $$invalidate) {
 
 	function fieldswitch_used_binding_1(value, header) {
 		header.used = value;
-		((($$invalidate(10, requestHeaders), $$invalidate(18, config)), $$invalidate(19, $env)), $$invalidate(0, transition));
+		$$invalidate(6, requestHeaders);
 	}
 
 	function fieldswitch_value_binding_1(value, header) {
 		header.example = value;
-		((($$invalidate(10, requestHeaders), $$invalidate(18, config)), $$invalidate(19, $env)), $$invalidate(0, transition));
+		$$invalidate(6, requestHeaders);
 	}
 
 	function textarea_input_handler() {
@@ -5388,35 +6645,30 @@ function instance($$self, $$props, $$invalidate) {
 	let fullUrl;
 	let isOauth2;
 	let isSendEnabled;
-	let requestHeaders;
 	let curl;
 
 	$$self.$$.update = () => {
-		if ($$self.$$.dirty[0] & /*config, $env*/ 786432) {
-			$: $$invalidate(6, environment = config.playground.environments[$env]);
+		if ($$self.$$.dirty[0] & /*config, $env*/ 1310720) {
+			$: $$invalidate(7, environment = config.playground.environments[$env]);
 		}
 
-		if ($$self.$$.dirty[0] & /*environment, transition*/ 65) {
-			$: $$invalidate(20, currentUrl = !(function webpackMissingModule() { var e = new Error("Cannot find module 'snowboard-theme-helper'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(!(function webpackMissingModule() { var e = new Error("Cannot find module 'snowboard-theme-helper'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(environment.url, transition.path)));
+		if ($$self.$$.dirty[0] & /*environment, transition*/ 129) {
+			$: $$invalidate(21, currentUrl = !(function webpackMissingModule() { var e = new Error("Cannot find module 'snowboard-theme-helper'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(!(function webpackMissingModule() { var e = new Error("Cannot find module 'snowboard-theme-helper'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(environment.url, transition.path)));
 		}
 
-		if ($$self.$$.dirty[0] & /*currentUrl, requestParameters*/ 1048608) {
-			$: $$invalidate(7, fullUrl = toFullUrl(currentUrl, populate(requestParameters)));
+		if ($$self.$$.dirty[0] & /*currentUrl, requestParameters*/ 2097184) {
+			$: $$invalidate(8, fullUrl = toFullUrl(currentUrl, populate(requestParameters)));
 		}
 
-		if ($$self.$$.dirty[0] & /*environment*/ 64) {
-			$: $$invalidate(8, isOauth2 = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_2__["isAuth"])(environment, "oauth2") || false);
+		if ($$self.$$.dirty[0] & /*environment*/ 128) {
+			$: $$invalidate(9, isOauth2 = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_2__["isAuth"])(environment, "oauth2") || false);
 		}
 
-		if ($$self.$$.dirty[0] & /*isOauth2, $token*/ 2097408) {
-			$: $$invalidate(9, isSendEnabled = isOauth2 ? !!(function webpackMissingModule() { var e = new Error("Cannot find module 'lodash'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())($token) : true);
+		if ($$self.$$.dirty[0] & /*isOauth2, $token*/ 4194816) {
+			$: $$invalidate(10, isSendEnabled = isOauth2 ? !!(function webpackMissingModule() { var e = new Error("Cannot find module 'lodash'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())($token) : true);
 		}
 
-		if ($$self.$$.dirty[0] & /*config, $env, transition*/ 786433) {
-			$: $$invalidate(10, requestHeaders = prepareHeaders(config.playground.environments[$env], transition.transactions[0].request.headers));
-		}
-
-		if ($$self.$$.dirty[0] & /*environment, transition, requestBody, requestHeaders, requestParameters*/ 1137) {
+		if ($$self.$$.dirty[0] & /*environment, transition, requestBody, requestHeaders, requestParameters*/ 241) {
 			$: $$invalidate(11, curl = !(function webpackMissingModule() { var e = new Error("Cannot find module 'snowboard-theme-helper'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())({
 				environment,
 				pathTemplate: transition.pathTemplate,
@@ -5435,11 +6687,11 @@ function instance($$self, $$props, $$invalidate) {
 		response,
 		requestBody,
 		requestParameters,
+		requestHeaders,
 		environment,
 		fullUrl,
 		isOauth2,
 		isSendEnabled,
-		requestHeaders,
 		curl,
 		$darkMode,
 		challengePair,
@@ -5448,6 +6700,7 @@ function instance($$self, $$props, $$invalidate) {
 		handleSend,
 		handleTab,
 		config,
+		prev,
 		$env,
 		currentUrl,
 		$token,
@@ -5466,12 +6719,24 @@ function instance($$self, $$props, $$invalidate) {
 class PlaygroundPanel extends !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()) {
 	constructor(options) {
 		super();
-		if (!document.getElementById("svelte-bi81cz-style")) add_css();
 		!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(this, options, instance, create_fragment, !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()), { transition: 0, config: 18 }, [-1, -1]);
 	}
 }
 
 /* harmony default export */ __webpack_exports__["default"] = (PlaygroundPanel);
+
+
+
+/***/ }),
+
+/***/ "./components/panels/PlaygroundPanel.svelte.css":
+/*!******************************************************!*\
+  !*** ./components/panels/PlaygroundPanel.svelte.css ***!
+  \******************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+// extracted by mini-css-extract-plugin
 
 /***/ }),
 
@@ -5488,21 +6753,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _lib_helper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../lib/helper */ "./lib/helper/index.js");
 /* harmony import */ var _tables_HeaderTable_svelte__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../tables/HeaderTable.svelte */ "./components/tables/HeaderTable.svelte");
 /* harmony import */ var _CodePanel_svelte__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./CodePanel.svelte */ "./components/panels/CodePanel.svelte");
-/* tmp/snowboard-build-31063aMtH15CbmWUR/components/panels/ResponsePanel.svelte generated by Svelte v3.20.1 */
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_components_panels_ResponsePanel_svelte_css__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./components/panels/ResponsePanel.svelte.css */ "./components/panels/ResponsePanel.svelte.css");
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_components_panels_ResponsePanel_svelte_css__WEBPACK_IMPORTED_MODULE_4___default = /*#__PURE__*/__webpack_require__.n(_tmp_snowboard_build_154486hw7ZWDyDSn23_components_panels_ResponsePanel_svelte_css__WEBPACK_IMPORTED_MODULE_4__);
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/components/panels/ResponsePanel.svelte generated by Svelte v3.20.1 */
 
 
 
 
 
 
-function add_css() {
-	var style = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("style");
-	style.id = "svelte-yincb9-style";
-	style.textContent = ".is-borderless.svelte-yincb9{box-shadow:none}.is-bordered.svelte-yincb9{border-top:solid 1px rgba(10, 10, 10, 0.1);border-bottom:solid 1px rgba(10, 10, 10, 0.1);background-color:rgba(10, 10, 10, 0.035)}";
-	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(document.head, style);
-}
-
-// (27:6) {:else}
 function create_else_block(ctx) {
 	let t0;
 	let t1_value = /*response*/ ctx[1].statusCode + "";
@@ -5746,12 +7005,24 @@ function instance($$self, $$props, $$invalidate) {
 class ResponsePanel extends !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()) {
 	constructor(options) {
 		super();
-		if (!document.getElementById("svelte-yincb9-style")) add_css();
 		!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(this, options, instance, create_fragment, !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()), { response: 1, show: 0 });
 	}
 }
 
 /* harmony default export */ __webpack_exports__["default"] = (ResponsePanel);
+
+
+
+/***/ }),
+
+/***/ "./components/panels/ResponsePanel.svelte.css":
+/*!****************************************************!*\
+  !*** ./components/panels/ResponsePanel.svelte.css ***!
+  \****************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+// extracted by mini-css-extract-plugin
 
 /***/ }),
 
@@ -5765,7 +7036,7 @@ class ResponsePanel extends !(function webpackMissingModule() { var e = new Erro
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
-/* tmp/snowboard-build-31063aMtH15CbmWUR/components/tables/HeaderTable.svelte generated by Svelte v3.20.1 */
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/components/tables/HeaderTable.svelte generated by Svelte v3.20.1 */
 
 
 function get_each_context(ctx, list, i) {
@@ -5955,7 +7226,7 @@ class HeaderTable extends !(function webpackMissingModule() { var e = new Error(
 __webpack_require__.r(__webpack_exports__);
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 /* harmony import */ var _lib_helper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../lib/helper */ "./lib/helper/index.js");
-/* tmp/snowboard-build-31063aMtH15CbmWUR/components/tables/ParameterTable.svelte generated by Svelte v3.20.1 */
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/components/tables/ParameterTable.svelte generated by Svelte v3.20.1 */
 
 
 
@@ -6338,6 +7609,17 @@ class ParameterTable extends !(function webpackMissingModule() { var e = new Err
 
 /***/ }),
 
+/***/ "./index.css":
+/*!*******************!*\
+  !*** ./index.css ***!
+  \*******************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+// extracted by mini-css-extract-plugin
+
+/***/ }),
+
 /***/ "./index.js":
 /*!******************!*\
   !*** ./index.js ***!
@@ -6349,6 +7631,9 @@ class ParameterTable extends !(function webpackMissingModule() { var e = new Err
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _App_svelte__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./App.svelte */ "./App.svelte");
 /* harmony import */ var _seeds__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./seeds */ "./seeds.js");
+/* harmony import */ var _index_css__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./index.css */ "./index.css");
+/* harmony import */ var _index_css__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(_index_css__WEBPACK_IMPORTED_MODULE_2__);
+
 
 
 
@@ -6422,9 +7707,10 @@ __webpack_require__.r(__webpack_exports__);
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
-!(function webpackMissingModule() { var e = new Error("Cannot find module 'prismjs'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
+/* harmony import */ var prismjs__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! prismjs */ "../../home/undefined/.config/yarn/global/node_modules/snowboard-theme-winter/node_modules/prismjs/prism.js");
+/* harmony import */ var prismjs__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(prismjs__WEBPACK_IMPORTED_MODULE_0__);
 
-!(function webpackMissingModule() { var e = new Error("Cannot find module 'prismjs'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()).languages.json = {
+prismjs__WEBPACK_IMPORTED_MODULE_0___default.a.languages.json = {
   property: {
     pattern: /"(?:\\.|[^\\"\r\n])*"(?=\s*:)/,
     greedy: true
@@ -6450,7 +7736,7 @@ __webpack_require__.r(__webpack_exports__);
     lang = "markup";
   }
 
-  return !(function webpackMissingModule() { var e = new Error("Cannot find module 'prismjs'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()).highlight(code, !(function webpackMissingModule() { var e = new Error("Cannot find module 'prismjs'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()).languages[lang], lang);
+  return prismjs__WEBPACK_IMPORTED_MODULE_0___default.a.highlight(code, prismjs__WEBPACK_IMPORTED_MODULE_0___default.a.languages[lang], lang);
 });
 
 /***/ }),
@@ -6459,7 +7745,7 @@ __webpack_require__.r(__webpack_exports__);
 /*!*****************************!*\
   !*** ./lib/helper/index.js ***!
   \*****************************/
-/*! exports provided: toHref, toPermalink, stringify, isAuth, filter, joinHref, highlight, markdown, colorize, sendRequest */
+/*! exports provided: toHref, toPermalink, stringify, isAuth, filter, highlight, markdown, colorize, sendRequest */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -6469,7 +7755,6 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "stringify", function() { return stringify; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "isAuth", function() { return isAuth; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "filter", function() { return filter; });
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "joinHref", function() { return joinHref; });
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'safe-json-stringify'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'snowboard-theme-helper'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 /* harmony import */ var _request__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./request */ "./lib/helper/request.js");
@@ -6484,22 +7769,29 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _colorize__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./colorize */ "./lib/helper/colorize.js");
 /* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "colorize", function() { return _colorize__WEBPACK_IMPORTED_MODULE_4__["default"]; });
 
+/* harmony import */ var _seeds__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../seeds */ "./seeds.js");
 
 
 
 
 
 
-function toHref(permalink, basePath = "/") {
+
+const {
+  config: {
+    basePath
+  }
+} = _seeds__WEBPACK_IMPORTED_MODULE_5__["default"];
+function toHref(permalink) {
   const char = permalink.substr(0, 1);
 
   if (char == "/") {
     return permalink;
   }
 
-  return permalink.replace(`${char}~`, `${basePath}${char}/`);
+  return permalink.replace(`${char}~`, `${basePath}${char}/`).replace(/\/\//g, "/");
 }
-function toPermalink(pathname, basePath = "/") {
+function toPermalink(pathname) {
   const segment = pathname.replace(basePath, "");
   const char = segment.substr(0, 1);
   return pathname.replace(`${basePath}${char}/`, `${char}~`);
@@ -6528,9 +7820,6 @@ function filter(query, groups) {
       href: toHref(permalink)
     };
   });
-}
-function joinHref(href, basePath = "/") {
-  return !(function webpackMissingModule() { var e = new Error("Cannot find module 'snowboard-theme-helper'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(basePath, href);
 }
 
 
@@ -6641,13 +7930,254 @@ const darkMode = !(function webpackMissingModule() { var e = new Error("Cannot f
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
+!(function webpackMissingModule() { var e = new Error("Cannot find module 'yrv'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 /* harmony import */ var _lib_helper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../lib/helper */ "./lib/helper/index.js");
 /* harmony import */ var _components_Breadcrumb_svelte__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../components/Breadcrumb.svelte */ "./components/Breadcrumb.svelte");
-/* tmp/snowboard-build-31063aMtH15CbmWUR/pages/Group.svelte generated by Svelte v3.20.1 */
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_pages_Group_svelte_css__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./pages/Group.svelte.css */ "./pages/Group.svelte.css");
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_pages_Group_svelte_css__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(_tmp_snowboard_build_154486hw7ZWDyDSn23_pages_Group_svelte_css__WEBPACK_IMPORTED_MODULE_3__);
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/pages/Group.svelte generated by Svelte v3.20.1 */
 
 
 
 
+
+
+function get_each_context_1(ctx, list, i) {
+	const child_ctx = ctx.slice();
+	child_ctx[4] = list[i];
+	return child_ctx;
+}
+
+function get_each_context(ctx, list, i) {
+	const child_ctx = ctx.slice();
+	child_ctx[1] = list[i];
+	return child_ctx;
+}
+
+// (37:12) <Link href={toHref(resource.permalink)}>
+function create_default_slot_1(ctx) {
+	let t_value = /*resource*/ ctx[1].title + "";
+	let t;
+
+	return {
+		c() {
+			t = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t_value);
+		},
+		m(target, anchor) {
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, t, anchor);
+		},
+		p(ctx, dirty) {
+			if (dirty & /*group*/ 1 && t_value !== (t_value = /*resource*/ ctx[1].title + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t, t_value);
+		},
+		d(detaching) {
+			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t);
+		}
+	};
+}
+
+// (44:16) <Link href={toHref(transition.permalink)}>
+function create_default_slot(ctx) {
+	let t_value = /*transition*/ ctx[4].title + "";
+	let t;
+
+	return {
+		c() {
+			t = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t_value);
+		},
+		m(target, anchor) {
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, t, anchor);
+		},
+		p(ctx, dirty) {
+			if (dirty & /*group*/ 1 && t_value !== (t_value = /*transition*/ ctx[4].title + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t, t_value);
+		},
+		d(detaching) {
+			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t);
+		}
+	};
+}
+
+// (42:12) {#each resource.transitions as transition}
+function create_each_block_1(ctx) {
+	let li;
+	let t;
+	let current;
+
+	const link = new !(function webpackMissingModule() { var e = new Error("Cannot find module 'yrv'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())({
+			props: {
+				href: Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toHref"])(/*transition*/ ctx[4].permalink),
+				$$slots: { default: [create_default_slot] },
+				$$scope: { ctx }
+			}
+		});
+
+	return {
+		c() {
+			li = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("li");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(link.$$.fragment);
+			t = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
+		},
+		m(target, anchor) {
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, li, anchor);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(link, li, null);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(li, t);
+			current = true;
+		},
+		p(ctx, dirty) {
+			const link_changes = {};
+			if (dirty & /*group*/ 1) link_changes.href = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toHref"])(/*transition*/ ctx[4].permalink);
+
+			if (dirty & /*$$scope, group*/ 129) {
+				link_changes.$$scope = { dirty, ctx };
+			}
+
+			link.$set(link_changes);
+		},
+		i(local) {
+			if (current) return;
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(link.$$.fragment, local);
+			current = true;
+		},
+		o(local) {
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(link.$$.fragment, local);
+			current = false;
+		},
+		d(detaching) {
+			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(li);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(link);
+		}
+	};
+}
+
+// (32:2) {#each group.resources as resource}
+function create_each_block(ctx) {
+	let div2;
+	let div1;
+	let div0;
+	let p;
+	let t0;
+	let ul;
+	let t1;
+	let current;
+
+	const link = new !(function webpackMissingModule() { var e = new Error("Cannot find module 'yrv'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())({
+			props: {
+				href: Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toHref"])(/*resource*/ ctx[1].permalink),
+				$$slots: { default: [create_default_slot_1] },
+				$$scope: { ctx }
+			}
+		});
+
+	let each_value_1 = /*resource*/ ctx[1].transitions;
+	let each_blocks = [];
+
+	for (let i = 0; i < each_value_1.length; i += 1) {
+		each_blocks[i] = create_each_block_1(get_each_context_1(ctx, each_value_1, i));
+	}
+
+	const out = i => !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks[i], 1, 1, () => {
+		each_blocks[i] = null;
+	});
+
+	return {
+		c() {
+			div2 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
+			div1 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
+			div0 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
+			p = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("p");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(link.$$.fragment);
+			t0 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
+			ul = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("ul");
+
+			for (let i = 0; i < each_blocks.length; i += 1) {
+				each_blocks[i].c();
+			}
+
+			t1 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(p, "class", "subtitle svelte-1nidj8");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div0, "class", "box-content");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div1, "class", "box svelte-1nidj8");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div2, "class", "column is-4");
+		},
+		m(target, anchor) {
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, div2, anchor);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div2, div1);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div1, div0);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div0, p);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(link, p, null);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div0, t0);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div0, ul);
+
+			for (let i = 0; i < each_blocks.length; i += 1) {
+				each_blocks[i].m(ul, null);
+			}
+
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div2, t1);
+			current = true;
+		},
+		p(ctx, dirty) {
+			const link_changes = {};
+			if (dirty & /*group*/ 1) link_changes.href = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toHref"])(/*resource*/ ctx[1].permalink);
+
+			if (dirty & /*$$scope, group*/ 129) {
+				link_changes.$$scope = { dirty, ctx };
+			}
+
+			link.$set(link_changes);
+
+			if (dirty & /*toHref, group*/ 1) {
+				each_value_1 = /*resource*/ ctx[1].transitions;
+				let i;
+
+				for (i = 0; i < each_value_1.length; i += 1) {
+					const child_ctx = get_each_context_1(ctx, each_value_1, i);
+
+					if (each_blocks[i]) {
+						each_blocks[i].p(child_ctx, dirty);
+						!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks[i], 1);
+					} else {
+						each_blocks[i] = create_each_block_1(child_ctx);
+						each_blocks[i].c();
+						!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks[i], 1);
+						each_blocks[i].m(ul, null);
+					}
+				}
+
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
+
+				for (i = each_value_1.length; i < each_blocks.length; i += 1) {
+					out(i);
+				}
+
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
+			}
+		},
+		i(local) {
+			if (current) return;
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(link.$$.fragment, local);
+
+			for (let i = 0; i < each_value_1.length; i += 1) {
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks[i]);
+			}
+
+			current = true;
+		},
+		o(local) {
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(link.$$.fragment, local);
+			each_blocks = each_blocks.filter(Boolean);
+
+			for (let i = 0; i < each_blocks.length; i += 1) {
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks[i]);
+			}
+
+			current = false;
+		},
+		d(detaching) {
+			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div2);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(link);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks, detaching);
+		}
+	};
+}
 
 function create_fragment(ctx) {
 	let t0;
@@ -6657,10 +8187,22 @@ function create_fragment(ctx) {
 	let t2;
 	let hr;
 	let t3;
-	let div;
+	let div0;
 	let raw_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["markdown"])(/*group*/ ctx[0].description) + "";
+	let t4;
+	let div1;
 	let current;
 	const breadcrumb = new _components_Breadcrumb_svelte__WEBPACK_IMPORTED_MODULE_2__["default"]({ props: { group: /*group*/ ctx[0] } });
+	let each_value = /*group*/ ctx[0].resources;
+	let each_blocks = [];
+
+	for (let i = 0; i < each_value.length; i += 1) {
+		each_blocks[i] = create_each_block(get_each_context(ctx, each_value, i));
+	}
+
+	const out = i => !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks[i], 1, 1, () => {
+		each_blocks[i] = null;
+	});
 
 	return {
 		c() {
@@ -6671,9 +8213,17 @@ function create_fragment(ctx) {
 			t2 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
 			hr = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("hr");
 			t3 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
-			div = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
+			div0 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
+			t4 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
+			div1 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
+
+			for (let i = 0; i < each_blocks.length; i += 1) {
+				each_blocks[i].c();
+			}
+
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(h1, "class", "title");
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div, "class", "content");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div0, "class", "content");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div1, "class", "columns is-multiline");
 		},
 		m(target, anchor) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(breadcrumb, target, anchor);
@@ -6683,8 +8233,15 @@ function create_fragment(ctx) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, t2, anchor);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, hr, anchor);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, t3, anchor);
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, div, anchor);
-			div.innerHTML = raw_value;
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, div0, anchor);
+			div0.innerHTML = raw_value;
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, t4, anchor);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, div1, anchor);
+
+			for (let i = 0; i < each_blocks.length; i += 1) {
+				each_blocks[i].m(div1, null);
+			}
+
 			current = true;
 		},
 		p(ctx, [dirty]) {
@@ -6692,15 +8249,53 @@ function create_fragment(ctx) {
 			if (dirty & /*group*/ 1) breadcrumb_changes.group = /*group*/ ctx[0];
 			breadcrumb.$set(breadcrumb_changes);
 			if ((!current || dirty & /*group*/ 1) && t1_value !== (t1_value = /*group*/ ctx[0].title + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t1, t1_value);
-			if ((!current || dirty & /*group*/ 1) && raw_value !== (raw_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["markdown"])(/*group*/ ctx[0].description) + "")) div.innerHTML = raw_value;;
+			if ((!current || dirty & /*group*/ 1) && raw_value !== (raw_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["markdown"])(/*group*/ ctx[0].description) + "")) div0.innerHTML = raw_value;;
+
+			if (dirty & /*group, toHref*/ 1) {
+				each_value = /*group*/ ctx[0].resources;
+				let i;
+
+				for (i = 0; i < each_value.length; i += 1) {
+					const child_ctx = get_each_context(ctx, each_value, i);
+
+					if (each_blocks[i]) {
+						each_blocks[i].p(child_ctx, dirty);
+						!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks[i], 1);
+					} else {
+						each_blocks[i] = create_each_block(child_ctx);
+						each_blocks[i].c();
+						!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks[i], 1);
+						each_blocks[i].m(div1, null);
+					}
+				}
+
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
+
+				for (i = each_value.length; i < each_blocks.length; i += 1) {
+					out(i);
+				}
+
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
+			}
 		},
 		i(local) {
 			if (current) return;
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(breadcrumb.$$.fragment, local);
+
+			for (let i = 0; i < each_value.length; i += 1) {
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks[i]);
+			}
+
 			current = true;
 		},
 		o(local) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(breadcrumb.$$.fragment, local);
+			each_blocks = each_blocks.filter(Boolean);
+
+			for (let i = 0; i < each_blocks.length; i += 1) {
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks[i]);
+			}
+
 			current = false;
 		},
 		d(detaching) {
@@ -6710,7 +8305,10 @@ function create_fragment(ctx) {
 			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t2);
 			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(hr);
 			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t3);
-			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div);
+			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div0);
+			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t4);
+			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div1);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks, detaching);
 		}
 	};
 }
@@ -6734,6 +8332,19 @@ class Group extends !(function webpackMissingModule() { var e = new Error("Canno
 
 /* harmony default export */ __webpack_exports__["default"] = (Group);
 
+
+
+/***/ }),
+
+/***/ "./pages/Group.svelte.css":
+/*!********************************!*\
+  !*** ./pages/Group.svelte.css ***!
+  \********************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+// extracted by mini-css-extract-plugin
+
 /***/ }),
 
 /***/ "./pages/Home.svelte":
@@ -6747,7 +8358,7 @@ class Group extends !(function webpackMissingModule() { var e = new Error("Canno
 __webpack_require__.r(__webpack_exports__);
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 /* harmony import */ var _lib_helper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../lib/helper */ "./lib/helper/index.js");
-/* tmp/snowboard-build-31063aMtH15CbmWUR/pages/Home.svelte generated by Svelte v3.20.1 */
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/pages/Home.svelte generated by Svelte v3.20.1 */
 
 
 
@@ -6822,13 +8433,103 @@ class Home extends !(function webpackMissingModule() { var e = new Error("Cannot
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
+!(function webpackMissingModule() { var e = new Error("Cannot find module 'yrv'"); e.code = 'MODULE_NOT_FOUND'; throw e; }());
 /* harmony import */ var _lib_helper__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../lib/helper */ "./lib/helper/index.js");
 /* harmony import */ var _components_Breadcrumb_svelte__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../components/Breadcrumb.svelte */ "./components/Breadcrumb.svelte");
-/* tmp/snowboard-build-31063aMtH15CbmWUR/pages/Resource.svelte generated by Svelte v3.20.1 */
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/pages/Resource.svelte generated by Svelte v3.20.1 */
 
 
 
 
+
+
+function get_each_context(ctx, list, i) {
+	const child_ctx = ctx.slice();
+	child_ctx[2] = list[i];
+	return child_ctx;
+}
+
+// (27:10) <Link href={toHref(transition.permalink)}>
+function create_default_slot(ctx) {
+	let t_value = /*transition*/ ctx[2].title + "";
+	let t;
+
+	return {
+		c() {
+			t = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t_value);
+		},
+		m(target, anchor) {
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, t, anchor);
+		},
+		p(ctx, dirty) {
+			if (dirty & /*resource*/ 2 && t_value !== (t_value = /*transition*/ ctx[2].title + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t, t_value);
+		},
+		d(detaching) {
+			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t);
+		}
+	};
+}
+
+// (23:2) {#each resource.transitions as transition}
+function create_each_block(ctx) {
+	let div2;
+	let div1;
+	let div0;
+	let t;
+	let current;
+
+	const link = new !(function webpackMissingModule() { var e = new Error("Cannot find module 'yrv'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())({
+			props: {
+				href: Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toHref"])(/*transition*/ ctx[2].permalink),
+				$$slots: { default: [create_default_slot] },
+				$$scope: { ctx }
+			}
+		});
+
+	return {
+		c() {
+			div2 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
+			div1 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
+			div0 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(link.$$.fragment);
+			t = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div0, "class", "box-content");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div1, "class", "box");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div2, "class", "column is-3");
+		},
+		m(target, anchor) {
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, div2, anchor);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div2, div1);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div1, div0);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(link, div0, null);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div2, t);
+			current = true;
+		},
+		p(ctx, dirty) {
+			const link_changes = {};
+			if (dirty & /*resource*/ 2) link_changes.href = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["toHref"])(/*transition*/ ctx[2].permalink);
+
+			if (dirty & /*$$scope, resource*/ 34) {
+				link_changes.$$scope = { dirty, ctx };
+			}
+
+			link.$set(link_changes);
+		},
+		i(local) {
+			if (current) return;
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(link.$$.fragment, local);
+			current = true;
+		},
+		o(local) {
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(link.$$.fragment, local);
+			current = false;
+		},
+		d(detaching) {
+			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div2);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(link);
+		}
+	};
+}
 
 function create_fragment(ctx) {
 	let t0;
@@ -6836,10 +8537,14 @@ function create_fragment(ctx) {
 	let t1_value = /*resource*/ ctx[1].title + "";
 	let t1;
 	let t2;
-	let hr;
+	let hr0;
 	let t3;
-	let div;
+	let div0;
 	let raw_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["markdown"])(/*resource*/ ctx[1].description) + "";
+	let t4;
+	let hr1;
+	let t5;
+	let div1;
 	let current;
 
 	const breadcrumb = new _components_Breadcrumb_svelte__WEBPACK_IMPORTED_MODULE_2__["default"]({
@@ -6849,6 +8554,17 @@ function create_fragment(ctx) {
 			}
 		});
 
+	let each_value = /*resource*/ ctx[1].transitions;
+	let each_blocks = [];
+
+	for (let i = 0; i < each_value.length; i += 1) {
+		each_blocks[i] = create_each_block(get_each_context(ctx, each_value, i));
+	}
+
+	const out = i => !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks[i], 1, 1, () => {
+		each_blocks[i] = null;
+	});
+
 	return {
 		c() {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(breadcrumb.$$.fragment);
@@ -6856,11 +8572,21 @@ function create_fragment(ctx) {
 			h1 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("h1");
 			t1 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t1_value);
 			t2 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
-			hr = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("hr");
+			hr0 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("hr");
 			t3 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
-			div = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
+			div0 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
+			t4 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
+			hr1 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("hr");
+			t5 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
+			div1 = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("div");
+
+			for (let i = 0; i < each_blocks.length; i += 1) {
+				each_blocks[i].c();
+			}
+
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(h1, "class", "title");
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div, "class", "content");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div0, "class", "content");
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div1, "class", "columns is-multiline");
 		},
 		m(target, anchor) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(breadcrumb, target, anchor);
@@ -6868,10 +8594,19 @@ function create_fragment(ctx) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, h1, anchor);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(h1, t1);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, t2, anchor);
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, hr, anchor);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, hr0, anchor);
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, t3, anchor);
-			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, div, anchor);
-			div.innerHTML = raw_value;
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, div0, anchor);
+			div0.innerHTML = raw_value;
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, t4, anchor);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, hr1, anchor);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, t5, anchor);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(target, div1, anchor);
+
+			for (let i = 0; i < each_blocks.length; i += 1) {
+				each_blocks[i].m(div1, null);
+			}
+
 			current = true;
 		},
 		p(ctx, [dirty]) {
@@ -6880,15 +8615,53 @@ function create_fragment(ctx) {
 			if (dirty & /*resource*/ 2) breadcrumb_changes.resource = /*resource*/ ctx[1];
 			breadcrumb.$set(breadcrumb_changes);
 			if ((!current || dirty & /*resource*/ 2) && t1_value !== (t1_value = /*resource*/ ctx[1].title + "")) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t1, t1_value);
-			if ((!current || dirty & /*resource*/ 2) && raw_value !== (raw_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["markdown"])(/*resource*/ ctx[1].description) + "")) div.innerHTML = raw_value;;
+			if ((!current || dirty & /*resource*/ 2) && raw_value !== (raw_value = Object(_lib_helper__WEBPACK_IMPORTED_MODULE_1__["markdown"])(/*resource*/ ctx[1].description) + "")) div0.innerHTML = raw_value;;
+
+			if (dirty & /*toHref, resource*/ 2) {
+				each_value = /*resource*/ ctx[1].transitions;
+				let i;
+
+				for (i = 0; i < each_value.length; i += 1) {
+					const child_ctx = get_each_context(ctx, each_value, i);
+
+					if (each_blocks[i]) {
+						each_blocks[i].p(child_ctx, dirty);
+						!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks[i], 1);
+					} else {
+						each_blocks[i] = create_each_block(child_ctx);
+						each_blocks[i].c();
+						!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks[i], 1);
+						each_blocks[i].m(div1, null);
+					}
+				}
+
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
+
+				for (i = each_value.length; i < each_blocks.length; i += 1) {
+					out(i);
+				}
+
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())();
+			}
 		},
 		i(local) {
 			if (current) return;
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(breadcrumb.$$.fragment, local);
+
+			for (let i = 0; i < each_value.length; i += 1) {
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks[i]);
+			}
+
 			current = true;
 		},
 		o(local) {
 			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(breadcrumb.$$.fragment, local);
+			each_blocks = each_blocks.filter(Boolean);
+
+			for (let i = 0; i < each_blocks.length; i += 1) {
+				!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks[i]);
+			}
+
 			current = false;
 		},
 		d(detaching) {
@@ -6896,9 +8669,14 @@ function create_fragment(ctx) {
 			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t0);
 			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(h1);
 			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t2);
-			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(hr);
+			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(hr0);
 			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t3);
-			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div);
+			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div0);
+			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t4);
+			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(hr1);
+			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(t5);
+			if (detaching) !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(div1);
+			!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(each_blocks, detaching);
 		}
 	};
 }
@@ -6944,7 +8722,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _components_panels_ResponsePanel_svelte__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../components/panels/ResponsePanel.svelte */ "./components/panels/ResponsePanel.svelte");
 /* harmony import */ var _components_panels_PlaygroundPanel_svelte__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../components/panels/PlaygroundPanel.svelte */ "./components/panels/PlaygroundPanel.svelte");
 /* harmony import */ var _components_Breadcrumb_svelte__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../components/Breadcrumb.svelte */ "./components/Breadcrumb.svelte");
-/* tmp/snowboard-build-31063aMtH15CbmWUR/pages/Transition.svelte generated by Svelte v3.20.1 */
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_pages_Transition_svelte_css__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./pages/Transition.svelte.css */ "./pages/Transition.svelte.css");
+/* harmony import */ var _tmp_snowboard_build_154486hw7ZWDyDSn23_pages_Transition_svelte_css__WEBPACK_IMPORTED_MODULE_8___default = /*#__PURE__*/__webpack_require__.n(_tmp_snowboard_build_154486hw7ZWDyDSn23_pages_Transition_svelte_css__WEBPACK_IMPORTED_MODULE_8__);
+/* tmp/snowboard-build-154486hw7ZWDyDSn23/pages/Transition.svelte generated by Svelte v3.20.1 */
 
 
 
@@ -6955,13 +8735,6 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-
-function add_css() {
-	var style = !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())("style");
-	style.id = "svelte-odvey1-style";
-	style.textContent = ".has-space.svelte-odvey1{margin-bottom:2rem}.card-header-title.svelte-odvey1{display:block;text-align:center}.tag-fullwidth.svelte-odvey1{flex-grow:1;justify-content:start}";
-	!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(document.head, style);
-}
 
 function get_each_context_1(ctx, list, i) {
 	const child_ctx = ctx.slice();
@@ -7558,12 +9331,24 @@ function instance($$self, $$props, $$invalidate) {
 class Transition extends !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()) {
 	constructor(options) {
 		super();
-		if (!document.getElementById("svelte-odvey1-style")) add_css();
 		!(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }())(this, options, instance, create_fragment, !(function webpackMissingModule() { var e = new Error("Cannot find module 'svelte/internal'"); e.code = 'MODULE_NOT_FOUND'; throw e; }()), { transition: 0, config: 1 });
 	}
 }
 
 /* harmony default export */ __webpack_exports__["default"] = (Transition);
+
+
+
+/***/ }),
+
+/***/ "./pages/Transition.svelte.css":
+/*!*************************************!*\
+  !*** ./pages/Transition.svelte.css ***!
+  \*************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+// extracted by mini-css-extract-plugin
 
 /***/ }),
 
@@ -8669,60 +10454,60 @@ const seeds = {
     "basePath": "/"
   },
   "uuids": {
-    "t~admin~ui~admin~ui~get~admin": "1ebba639-128b-429a-af52-31f69a3deb80",
-    "t~metadata~all~meta~get~api~meta": "f60db7cc-da16-4aca-a32e-72b7dd848200",
-    "t~metadata~individual~meta~post~api~meta~key": "d024dea4-e60b-4002-92fd-53425a3c06e9",
-    "t~metadata~individual~meta~get~api~meta~key": "f5632bad-99dd-4fc4-9078-ab353dbfa8ab",
-    "t~metadata~individual~meta~delete~api~meta~key": "797d0424-e802-4c01-a8e7-f0d313985d07",
-    "t~authentication~authentication~get~api~auth": "3194ad30-d338-4212-acad-0624ad2c9366",
-    "t~authentication~user~tokens~get~api~user~tokens": "6a3a78e9-64a2-4a0b-b8d5-83f0ff76c908",
-    "t~authentication~create~token~post~api~user~token": "de355668-8793-45d4-8071-30c38992d0b6",
-    "t~authentication~token~get~api~user~token~token~id": "ccdc545c-8b03-471d-af31-a5d7e7b0ea89",
-    "t~authentication~token~delete~api~user~token~token~id": "f4d920e9-162f-4108-a045-fd1052ecf622",
-    "t~styles~server~styles~get~api~styles": "625056d2-a640-4009-8ba1-53b219adf2a4",
-    "t~styles~user~styles~get~api~styles~uid": "8233950c-d3f5-41bd-bb86-b5d830466459",
-    "t~styles~create~stypes~post~api~style": "59305b5f-18ea-4ab3-8a96-198c3ba80520",
-    "t~styles~individual~styles~get~api~style~style~id": "ee8d0632-fb9a-429e-aa4c-133b4284fe6c",
-    "t~styles~individual~styles~delete~api~style~style~id": "08388daf-d631-4af2-a6a1-2d421334afd0",
-    "t~styles~individual~styles~patch~api~style~style~id": "fa698163-e2aa-4887-b45f-207f38a244f9",
-    "t~styles~style~access~post~api~style~style~id~style~access": "5e8f6cbc-912e-4808-8071-f7bd8a1b041b",
-    "t~json~schema~json~schema~get~api~schema": "2c9e4060-9d2e-46f2-8f24-73b16593ad5f",
-    "t~vector~tiles~tile~cache~delete~api~tiles": "540cee92-b16d-4d3a-9065-902ed5a3aae9",
-    "t~vector~tiles~tiles~get~api~tiles~z~x~y": "1f40cf80-eca2-4d90-a778-f43e420b66fa",
-    "t~vector~tiles~tile~meta~get~api~tiles~z~x~y~meta": "e6060755-d6bc-4c1e-b50b-249afcf069b5",
-    "t~vector~tiles~tile~regen~get~api~tiles~z~x~y~regen": "5366a84b-d7f6-450c-aa3f-1bf8e68fb513",
-    "t~webhooks~webhooks~get~api~webhooks": "c46f4d41-b5b8-401a-b481-60301a601f3b",
-    "t~webhooks~webhooks~post~api~webhooks": "cc2e8dc3-9ef3-4364-bece-ff234d29a09e",
-    "t~webhooks~webhook~get~api~webhooks~id": "345ab157-5d66-4f45-bf95-6bc3fe3b954f",
-    "t~webhooks~webhook~post~api~webhooks~id": "65dbe222-ed56-4aa1-bcef-e1f1706c1fdf",
-    "t~webhooks~webhook~delete~api~webhooks~id": "53fd7e1f-258c-4f30-b9e5-95958f629f10",
-    "t~users~list~users~get~api~users": "ac28b12c-62f6-4683-a5dc-f4ffc1b867f9",
-    "t~users~create~user~get~api~user~create": "a9534ab8-470f-4ccb-b0b9-05d2dd45545c",
-    "t~users~user~sessions~get~api~user~session": "e6ba52ba-5d1c-4e42-85ff-d5e2e8147912",
-    "t~users~self~info~get~api~user~info": "71ed85fe-aa78-4edf-9a21-6c866910e7a5",
-    "t~users~user~info~get~api~user~id": "d09f1929-fa6e-4b6c-bda0-aadaac893786",
-    "t~users~user~access~put~api~user~id~admin": "95714530-29dd-487f-a736-a3b63da82826",
-    "t~users~user~access~delete~api~user~id~admin": "7f61d57b-6345-4381-bcea-ffdcc55ea8af",
-    "t~users~user~access~get~api~user~id~admin": "0edf4adb-cb29-49b9-b478-bfabe00ef587",
-    "t~data~cloning~server~get~api~data~clone": "7df52b75-c4e1-4f82-b470-11d7e7f10162",
-    "t~data~downloading~multiple~features~get~api~data~features": "49201a49-db95-4165-93b6-776f2f518ed9",
-    "t~data~features~post~api~data~features": "0d3479a6-d010-4f0e-8689-3d85bcafc2c4",
-    "t~data~downloading~view~query~get~api~data~query": "035f37ac-e8d0-4560-b71c-255466fa7fe2",
-    "t~data~downloading~multiple~features~history~get~api~data~features~history": "1e8adb7a-bce8-4ba9-8a92-8253ddbeb9d0",
-    "t~data~feature~post~api~data~feature": "502ffe54-fb24-4bb7-b544-4ae985fa95c6",
-    "t~data~feature~get~api~data~feature": "2d5d20ec-0ba0-4e92-815c-51357928e951",
-    "t~data~feature~lookup~get~api~data~feature~id": "61f4755a-1fb7-4b76-be45-ebe294bb6e57",
-    "t~data~feature~history~get~api~data~feature~id~history": "3d6e7d1d-bdab-40a1-b22c-f5147232a602",
-    "t~data~data~stats~get~api~data~stats": "84ac4756-3461-454d-a975-92002518f08a",
-    "t~data~data~stats~regen~get~api~data~stats~regen": "7f21d806-32eb-40dc-8746-bd2c3f81e4ab",
-    "t~boundaries~list~bounds~get~api~data~bounds": "6db54e5b-653c-469b-9430-bdd01521b3c6",
-    "t~boundaries~bound~get~api~data~bounds~bounds": "18346c84-081b-47d3-9fca-5e04e6b5ad5f",
-    "t~boundaries~bound~post~api~data~bounds~bounds": "7be084bb-0fbc-4fff-bd4f-03b8ab1599d4",
-    "t~boundaries~bound~delete~api~data~bounds~bounds": "ee6128f4-7dd3-4ea6-80c5-234ae858aeb5",
-    "t~boundaries~bound~stats~get~api~data~bounds~bounds~stats": "fdb4110e-f2c4-47ad-bfdf-5d8661b7500e",
-    "t~boundaries~bound~meta~get~api~data~bounds~bounds~meta": "52555684-3d6e-4662-907c-e586f3fdb500",
-    "t~deltas~deltas~get~api~deltas": "1771d001-d8e6-4171-ab28-1b04559a666e",
-    "t~deltas~individual~delta~get~api~deltas~id": "90ffdd29-552e-4c3c-9cc9-b001c790806b"
+    "t~admin~ui~admin~ui~get~admin": "uxqyVKBY3SWoY-ZVS8zSH",
+    "t~metadata~all~meta~get~api~meta": "ht7hEzc4hRjumelASoTPJ",
+    "t~metadata~individual~meta~post~api~meta~key": "iKpgh5IOIdu2SPznj55-t",
+    "t~metadata~individual~meta~get~api~meta~key": "0PZeb5VUANxsXJN-3I8FE",
+    "t~metadata~individual~meta~delete~api~meta~key": "M_5KEmfiJ_6dSgwC8OyYp",
+    "t~authentication~authentication~get~api~auth": "9MXfsofaqSSWCc-Tj-JRk",
+    "t~authentication~user~tokens~get~api~user~tokens": "2FerVPRxc8GQbAp639rpA",
+    "t~authentication~create~token~post~api~user~token": "LeNVF8f29LpnPtF8EIJVb",
+    "t~authentication~token~get~api~user~token~token~id": "CH6HN5UbW9hlzoOfrAA5N",
+    "t~authentication~token~delete~api~user~token~token~id": "SSJbjCUrjHOhkw2LaIGL8",
+    "t~styles~server~styles~get~api~styles": "b8etlfrWn3btS8KcTT9gx",
+    "t~styles~user~styles~get~api~styles~uid": "XYpaNYl6eoSsHAUDG4EiF",
+    "t~styles~create~stypes~post~api~style": "HH3VykjYP6HRSwew7pVLr",
+    "t~styles~individual~styles~get~api~style~style~id": "NDwrnOol2GQichtCoQujT",
+    "t~styles~individual~styles~delete~api~style~style~id": "SwB7YHlmziGzcBrDH-_GB",
+    "t~styles~individual~styles~patch~api~style~style~id": "zDEh9GcGvLJ6ZBMrzmmex",
+    "t~styles~style~access~post~api~style~style~id~style~access": "vMH9Z8Wa1gcds8b03eBbx",
+    "t~json~schema~json~schema~get~api~schema": "xhRSL-K_3ev_PDumOkRsa",
+    "t~vector~tiles~tile~cache~delete~api~tiles": "PN0Lf9ArzABc31Ik135jd",
+    "t~vector~tiles~tiles~get~api~tiles~z~x~y": "74iZevb0W-cqxAPl4JU_p",
+    "t~vector~tiles~tile~meta~get~api~tiles~z~x~y~meta": "OOazMPK5Z2L8FrQYxYUl7",
+    "t~vector~tiles~tile~regen~get~api~tiles~z~x~y~regen": "LVlekx-n6JgoYkv4JErHH",
+    "t~webhooks~webhooks~get~api~webhooks": "F1YBj3BAV5QnKdoiwzIPp",
+    "t~webhooks~webhooks~post~api~webhooks": "QggveyRi1qSyn1JVL2CsX",
+    "t~webhooks~webhook~get~api~webhooks~id": "UC257ykHaGUN1rpCqB55k",
+    "t~webhooks~webhook~post~api~webhooks~id": "Z9JUUWUuR72JzeGUAJg_1",
+    "t~webhooks~webhook~delete~api~webhooks~id": "p4Zb6C4EI7Gn_LkMFjdCO",
+    "t~users~list~users~get~api~users": "u4hYPNHmxaDA-NbUGhe8_",
+    "t~users~create~user~get~api~user~create": "GJzL0gVvi-m5UDfgzoNNB",
+    "t~users~user~sessions~get~api~user~session": "3m9pueeAAqQ4vOmo3gN1H",
+    "t~users~self~info~get~api~user~info": "ROCvuCq9pfO2y8EyJCAEM",
+    "t~users~user~info~get~api~user~id": "lIfeW2Vk7C-GqG8JHQWCY",
+    "t~users~user~access~put~api~user~id~admin": "K226WfHmOAlSFulaltYhQ",
+    "t~users~user~access~delete~api~user~id~admin": "vSp6qUVmSbrYkwQEALO-W",
+    "t~users~user~access~get~api~user~id~admin": "mQ26H27At8flggTvUR1vP",
+    "t~data~cloning~server~get~api~data~clone": "1OIDBmvxAdBhPAmxjhrL6",
+    "t~data~downloading~multiple~features~get~api~data~features": "gVw4QQKIKcSQ-wm6TPkQP",
+    "t~data~features~post~api~data~features": "DbqMpZ9XCA7UBTSK_H33G",
+    "t~data~downloading~view~query~get~api~data~query": "UIOQDw3nfEMIFnl8VQWKL",
+    "t~data~downloading~multiple~features~history~get~api~data~features~history": "ax8yf3L-Id7TLUCradGgg",
+    "t~data~feature~post~api~data~feature": "PfIbgthK4ktzkf7jHGOHE",
+    "t~data~feature~get~api~data~feature": "N436KwkAez4Chs7i-wZ-z",
+    "t~data~feature~lookup~get~api~data~feature~id": "JNokiGAzRHWXt8Kwi1p71",
+    "t~data~feature~history~get~api~data~feature~id~history": "UU7dTdu34mV1zvh_Ku4wq",
+    "t~data~data~stats~get~api~data~stats": "sRzZ5ff3XenOZMY0OvThb",
+    "t~data~data~stats~regen~get~api~data~stats~regen": "f8uNqqgWCwuMSY0ybnwzV",
+    "t~boundaries~list~bounds~get~api~data~bounds": "QD84io5Rt1HR3xqC91OQa",
+    "t~boundaries~bound~get~api~data~bounds~bounds": "bSs19fjmoiXoZ4WJnRii_",
+    "t~boundaries~bound~post~api~data~bounds~bounds": "zo5V_VKyqyXAy9_Ouk2Qy",
+    "t~boundaries~bound~delete~api~data~bounds~bounds": "O4zeut9HgfjuCiYGiDDNV",
+    "t~boundaries~bound~stats~get~api~data~bounds~bounds~stats": "u7NEdgyDjEueqEqpubh8C",
+    "t~boundaries~bound~meta~get~api~data~bounds~bounds~meta": "9FAIEDWhGosXMyqrB8jpH",
+    "t~deltas~deltas~get~api~deltas": "iI-cTdBa1-4L7FUwP1K_V",
+    "t~deltas~individual~delta~get~api~deltas~id": "cG8LAzIvxB6-c0yJdtoGl"
   },
   "descriptionToc": []
 };
