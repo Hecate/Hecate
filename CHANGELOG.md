@@ -10,6 +10,10 @@
 
 # Version History
 
+## v0.87.0
+
+- :arrow_up: Update to `async`/`await` and `actix@2`
+
 ## v0.86.4
 
 - :rocket: Fix a bunch of clippy warnings
