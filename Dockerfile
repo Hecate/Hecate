@@ -13,14 +13,14 @@ RUN apt-get update -y \
         software-properties-common \
         libcurl4-openssl-dev \
         apt-transport-https \
-        postgresql-contrib-11 \
+        postgresql-contrib-12 \
         build-essential \
         libiberty-dev \
         binutils-dev \
         pkg-config \
         zlib1g-dev \
-        postgresql-11 \
-        postgresql-11-postgis-2.5 \
+        postgresql-12 \
+        postgresql-12-postgis-2.5 \
         libssl-dev \
         libelf-dev \
         libdw-dev \
@@ -44,9 +44,9 @@ RUN curl 'https://nodejs.org/dist/v10.15.3/node-v10.15.3-linux-x64.tar.gz' | tar
     && ./node-v10.15.3-linux-x64/bin/npm install -g npm \
     && npm install -g yarn \
     && curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain 1.40.0  \
-    && echo "local all all trust " > /etc/postgresql/11/main/pg_hba.conf \
-    && echo "host all all 127.0.0.1/32 trust" >> /etc/postgresql/11/main/pg_hba.conf \
-    && echo "host all all ::1/128 trust" >> /etc/postgresql/11/main/pg_hba.conf
+    && echo "local all all trust " > /etc/postgresql/12/main/pg_hba.conf \
+    && echo "host all all 127.0.0.1/32 trust" >> /etc/postgresql/12/main/pg_hba.conf \
+    && echo "host all all ::1/128 trust" >> /etc/postgresql/12/main/pg_hba.conf
 
 WORKDIR /usr/local/src/hecate
 ADD . /usr/local/src/hecate
