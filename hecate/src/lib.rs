@@ -40,7 +40,6 @@ pub mod osm;
 pub mod user;
 pub mod auth;
 
-use actix_http::error::ResponseError;
 use actix_http::httpmessage::HttpMessage;
 use actix_web::{web, web::Json, App, HttpResponse, HttpRequest, HttpServer, middleware};
 use futures::{StreamExt};
@@ -54,7 +53,7 @@ use std::{
     collections::HashMap
 };
 
-pub fn start(
+pub async fn start(
     database: Database,
     port: Option<u16>,
     workers: Option<u16>,
@@ -230,7 +229,7 @@ pub fn start(
                         .route(web::get().to(user_tokens))
                     )
                     .service(web::resource("token")
-                        .route(web::post().to_async(user_token_create))
+                        .route(web::post().to(user_token_create))
                     )
                     .service(web::resource("token/{token}")
                         .route(web::delete().to(user_token_delete))
@@ -238,36 +237,26 @@ pub fn start(
                     )
                     .service(web::resource("{uid}")
                         .route(web::get().to(user_info))
-                        .route(web::post().to_async(user_modify_info))
-                    )
-                    .service(web::resource("{uid}/admin")
-                        .route(web::put().to(user_set_admin))
-                        .route(web::delete().to(user_delete_admin))
-                    )
-                )
-                .service(web::scope("data")
-                    .service(web::resource("feature")
-                        .route(web::get().to(feature_query))
-                        .route(web::post().to_async(feature_action))
+                        .route(web::post().to(feature_action))
                     )
                     .service(web::resource("feature/{id}")
-                        .route(web::get().to_async(feature_get))
+                        .route(web::get().to(feature_get))
                     )
                     .service(web::resource("feature/{id}/history")
-                        .route(web::get().to_async(feature_get_history))
+                        .route(web::get().to(feature_get_history))
                     )
                     .service(web::resource("features")
-                        .route(web::post().to_async(features_action))
+                        .route(web::post().to(features_action))
                         .route(web::get().to(features_query))
                     )
                     .service(web::resource("features/history")
                         .route(web::get().to(features_history_query))
                     )
                     .service(web::resource("stats")
-                        .route(web::get().to_async(stats_get))
+                        .route(web::get().to(stats_get))
                     )
                     .service(web::resource("stats/regen")
-                        .route(web::get().to_async(stats_regen))
+                        .route(web::get().to(stats_regen))
                     )
                     .service(web::resource("query")
                         .route(web::get().to(clone_query))
@@ -277,18 +266,18 @@ pub fn start(
                     )
                     .service(web::scope("bounds")
                         .service(web::resource("")
-                            .route(web::get().to_async(bounds))
+                            .route(web::get().to(bounds))
                         )
                         .service(web::resource("{bound}/stats")
-                            .route(web::get().to_async(bounds_stats))
+                            .route(web::get().to(bounds_stats))
                         )
                         .service(web::resource("{bound}/meta")
-                            .route(web::get().to_async(bounds_meta))
+                            .route(web::get().to(bounds_meta))
                         )
                         .service(web::resource("{bound}")
                             .route(web::get().to(bounds_get))
-                            .route(web::post().to_async(bounds_set))
-                            .route(web::delete().to_async(bounds_delete))
+                            .route(web::post().to(bounds_set))
+                            .route(web::delete().to(bounds_delete))
                         )
                     )
                 )
@@ -298,7 +287,7 @@ pub fn start(
         .bind(format!("0.0.0.0:{}", port.unwrap_or(8000)).as_str())
         .unwrap()
         .run()
-        .unwrap();
+        .await;
 }
 
 #[derive(Deserialize, Debug)]
@@ -566,7 +555,7 @@ async fn user_modify_info(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     uid: web::Path<i64>,
-    body: web::Payload
+    mut body: web::Payload
 ) -> Result<Json<serde_json::Value>, HecateError> {
     auth_rules.0.is_admin(&auth)?;
 
@@ -788,7 +777,7 @@ async fn user_token_create(
     conn: web::Data<DbReadWrite>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
-    body: web::Payload
+    mut body: web::Payload
 ) -> Result<Json<serde_json::Value>, HecateError> {
     auth::check(&auth_rules.0.user.create_session, auth::RW::Full, &auth)?;
 
@@ -859,7 +848,7 @@ async fn style_create(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     worker: web::Data<worker::Worker>,
-    body: web::Payload
+    mut body: web::Payload
 ) -> Result<Json<serde_json::Value>,HecateError> {
     let conn = conn.get()?;
 
@@ -917,7 +906,7 @@ async fn style_patch(
     auth_rules: web::Data<auth::AuthContainer>,
     worker: web::Data<worker::Worker>,
     style_id: web::Path<i64>,
-    body: web::Payload
+    mut body: web::Payload
 ) -> Result<Json<serde_json::Value>, HecateError> {
     let conn = conn.get()?;
     let style_id = style_id.into_inner();
@@ -1096,7 +1085,7 @@ async fn bounds_set(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     bounds: web::Path<String>,
-    body: web::Payload
+    mut body: web::Payload
 ) -> Result<Json<serde_json::Value>, HecateError> {
     auth::check(&auth_rules.0.bounds.create, auth::RW::Full, &auth)?;
     let conn = conn.get()?;
@@ -1354,7 +1343,7 @@ async fn features_action(
     conn: web::Data<DbReadWrite>,
     worker: web::Data<worker::Worker>,
     schema: web::Data<Option<serde_json::value::Value>>,
-    body: web::Payload
+    mut body: web::Payload
 ) -> Result<Json<serde_json::Value>, HecateError> {
     let conn = conn.get()?;
     auth::check(&auth_rules.0.feature.create, auth::RW::Full, &auth)?;
@@ -1482,7 +1471,7 @@ async fn osm_changeset_create(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     conn: web::Data<DbReadWrite>,
-    body: web::Payload
+    mut body: web::Payload
 ) -> Result<String, HecateError> {
     let conn = conn.get()?;
 
@@ -1541,7 +1530,7 @@ async fn osm_changeset_modify(
     auth_rules: web::Data<auth::AuthContainer>,
     conn: web::Data<DbReadWrite>,
     delta_id: web::Path<i64>,
-    body: web::Payload
+    mut body: web::Payload
 ) -> Result<HttpResponse, HecateError> {
     let conn = conn.get()?;
 
@@ -1616,7 +1605,7 @@ async fn osm_changeset_upload(
     schema: web::Data<Option<serde_json::value::Value>>,
     worker: web::Data<worker::Worker>,
     delta_id: web::Path<i64>,
-    body: web::Payload
+    mut body: web::Payload
 ) -> Result<HttpResponse, HecateError> {
     let conn = conn.get()?;
 
@@ -1770,7 +1759,7 @@ async fn feature_action(
     conn: web::Data<DbReadWrite>,
     schema: web::Data<Option<serde_json::value::Value>>,
     worker: web::Data<worker::Worker>,
-    body: web::Payload
+    mut body: web::Payload
 ) -> Result<Json<serde_json::Value>, HecateError> {
     let conn = conn.get()?;
 
@@ -1871,28 +1860,25 @@ async fn feature_action(
     }
 }
 
-fn feature_get(
+async fn feature_get(
     conn: web::Data<DbReplica>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     id: web::Path<i64>
 ) -> Result<HttpResponse, HecateError> {
-    web::block(move || {
+    let feature = web::block(move || {
         auth::check(&auth_rules.0.feature.get, auth::RW::Read, &auth)?;
 
         match feature::get(&*conn.get()?, id.into_inner()) {
             Ok(feature) => Ok(geojson::GeoJson::from(feature).to_string()),
             Err(err) => Err(err)
         }
-    }).then(|res: Result<String, actix_threadpool::BlockingError<HecateError>>| match res {
-        Ok(feature) => {
-            Ok(HttpResponse::build(actix_web::http::StatusCode::OK)
-                .content_type("application/json")
-                .content_length(feature.len() as u64)
-                .body(feature))
-        },
-        Err(err) => Ok(HecateError::from(err).error_response())
-    })
+    }).await?;
+
+    Ok(HttpResponse::build(actix_web::http::StatusCode::OK)
+        .content_type("application/json")
+        .content_length(feature.len() as u64)
+        .body(feature))
 }
 
 async fn feature_get_history(

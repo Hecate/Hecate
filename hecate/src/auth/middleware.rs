@@ -4,7 +4,10 @@ use futures::future::{ok, Either, Ready};
 use std::task::Poll;
 use crate::db::DbReplica;
 use crate::user::token::Scope;
+use std::task::Context;
 use super::{Auth, ServerAuthDefault, AuthAccess};
+use std::future::Future;
+use std::pin::Pin;
 
 #[derive(Clone)]
 pub struct EnforceAuth {
@@ -56,10 +59,10 @@ where
     type Request = ServiceRequest;
     type Response = ServiceResponse<B>;
     type Error = Error;
-    type Future = Either<S::Future, Ready<Result<Self::Response, Self::Error>>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
 
-    fn poll_ready(&mut self) -> Poll<()> {
-        self.service.poll_ready()
+    fn poll_ready(&mut self, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
+        self.service.poll_ready(cx)
     }
 
     fn call(&mut self, mut req: ServiceRequest) -> Self::Future {

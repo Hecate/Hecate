@@ -471,7 +471,7 @@ impl actix_web::FromRequest for Auth {
     type Config = ();
 
     fn from_request(req: &actix_web::HttpRequest, _payload: &mut actix_web::dev::Payload) -> Self::Future {
-        Ok(Auth::from_headers(req)?)
+        futures::future::ready(Auth::from_headers(req))
     }
 }
 
