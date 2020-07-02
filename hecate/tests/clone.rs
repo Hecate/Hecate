@@ -79,7 +79,7 @@ mod test {
             println!("{}", body_str);
             body_str.pop();
             body_str.pop();
-            assert_eq!(&*body_str, r#"{"id":1,"key":null,"type":"Feature","version":1,"geometry":{"type":"Point","coordinates":[-77.0121002197266,38.9257632323745]},"properties":{"indc": true}}"#);
+            assert_eq!(&*body_str, r#"{"id":1,"key":null,"type":"Feature","version":1,"geometry":{"type":"Point","coordinates":[-77.01210022,38.925763232]},"properties":{"indc": true}}"#);
             assert!(resp.status().is_success());
         }
 
