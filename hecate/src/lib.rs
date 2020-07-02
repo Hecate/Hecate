@@ -335,12 +335,12 @@ struct FeatureQuery {
     point: Option<String>
 }
 
-fn index() -> &'static str { "Hello World!" }
+async fn index() -> &'static str { "Hello World!" }
 
-fn server(
+async fn server(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>
-) -> Result<Json<serde_json::Value>, HecateError> {
+) -> Result<Json<serde_json::Value>, actix_web::Error> {
     auth::check(&auth_rules.0.server, auth::RW::Read, &auth)?;
 
     Ok(Json(json!({
@@ -826,7 +826,7 @@ async fn user_token_create(
     }
 }
 
-fn user_token_delete(
+async fn user_token_delete(
     conn: web::Data<DbReadWrite>,
     auth_rules: web::Data<auth::AuthContainer>,
     auth: auth::Auth,
@@ -872,7 +872,7 @@ async fn style_create(
     Ok(Json(json!(style_id)))
 }
 
-fn style_public(
+async fn style_public(
     conn: web::Data<DbReadWrite>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
@@ -886,7 +886,7 @@ fn style_public(
     Ok(Json(json!(style::access(&*conn.get()?, uid, style_id, true)?)))
 }
 
-fn style_private(
+async fn style_private(
     conn: web::Data<DbReadWrite>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
@@ -930,7 +930,7 @@ async fn style_patch(
     Ok(Json(json!(style::update(&*conn, uid, style_id, &body)?)))
 }
 
-fn style_delete(
+async fn style_delete(
     conn: web::Data<DbReadWrite>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
@@ -947,7 +947,7 @@ fn style_delete(
 }
 
 
-fn style_get(
+async fn style_get(
     conn: web::Data<DbReplica>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
@@ -960,7 +960,7 @@ fn style_get(
     Ok(Json(json!(style::get(&*conn.get()?, &auth.uid, style_id)?)))
 }
 
-fn style_list_public(
+async fn style_list_public(
     conn: web::Data<DbReplica>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>
@@ -970,7 +970,7 @@ fn style_list_public(
     Ok(Json(json!(style::list_public(&*conn.get()?)?)))
 }
 
-fn style_list_user(
+async fn style_list_user(
     conn: web::Data<DbReplica>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
@@ -1068,7 +1068,7 @@ async fn bounds(
     }).await?)
 }
 
-fn bounds_get(
+async fn bounds_get(
     conn: web::Data<DbReplica>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
@@ -1222,7 +1222,7 @@ async fn bounds_meta(
     }).await?)
 }
 
-fn clone_query(
+async fn clone_query(
     sandbox_conn: web::Data<DbSandbox>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
@@ -1234,7 +1234,7 @@ fn clone_query(
     Ok(resp.streaming(clone::query(sandbox_conn.get()?, &cquery.query, &cquery.limit)?))
 }
 
-fn clone_get(
+async fn clone_get(
     conn: web::Data<DbReplica>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>
@@ -1245,7 +1245,7 @@ fn clone_get(
     Ok(resp.streaming(clone::get(conn.get()?)?))
 }
 
-fn features_query(
+async fn features_query(
     conn: web::Data<DbReplica>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
@@ -1268,7 +1268,7 @@ fn features_query(
     }
 }
 
-fn features_history_query(
+async fn features_history_query(
     conn: web::Data<DbReplica>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
@@ -1291,7 +1291,7 @@ fn features_history_query(
     }
 }
 
-fn schema_get(
+async fn schema_get(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     schema: web::Data<Option<serde_json::value::Value>>
@@ -1304,7 +1304,7 @@ fn schema_get(
     }
 }
 
-fn auth_get(
+async fn auth_get(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>
 ) -> Result<Json<serde_json::Value>, HecateError> {
@@ -1447,7 +1447,7 @@ async fn features_action(
     }
 }
 
-fn osm_map(
+async fn osm_map(
     conn: web::Data<DbReplica>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
@@ -1515,7 +1515,7 @@ async fn osm_changeset_create(
     Ok(delta_id.to_string())
 }
 
-fn osm_changeset_close(
+async fn osm_changeset_close(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
     delta_id: web::Path<i64>
@@ -1713,7 +1713,7 @@ async fn osm_changeset_upload(
     }
 }
 
-fn osm_capabilities(
+async fn osm_capabilities(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>
 ) -> Result<String, HecateError> {
@@ -1733,7 +1733,7 @@ fn osm_capabilities(
     "))
 }
 
-fn osm_user(
+async fn osm_user(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>
 ) -> Result<String, HecateError> {
@@ -1894,7 +1894,7 @@ async fn feature_get_history(
     }).await?)
 }
 
-fn feature_query(
+async fn feature_query(
     conn: web::Data<DbReplica>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
