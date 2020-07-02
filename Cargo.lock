@@ -1076,6 +1076,7 @@ version = "0.86.4"
 dependencies = [
  "actix-files 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "actix-http 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "actix-rt 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "actix-service 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "actix-threadpool 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "actix-web 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",

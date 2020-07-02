@@ -53,6 +53,7 @@ use std::{
     collections::HashMap
 };
 
+#[actix_rt::main]
 pub async fn start(
     database: Database,
     port: Option<u16>,
@@ -237,6 +238,17 @@ pub async fn start(
                     )
                     .service(web::resource("{uid}")
                         .route(web::get().to(user_info))
+                        .route(web::post().to(user_modify_info))
+                    )
+                    .service(web::resource("{uid}/admin")
+                        .route(web::put().to(user_set_admin))
+                        .route(web::delete().to(user_delete_admin))
+                    )
+                )
+                .service(web::scope("data")
+                    .service(web::resource("feature")
+                        .route(web::get().to(feature_query))
+                        .route(web::post().to(feature_action))
                         .route(web::post().to(feature_action))
                     )
                     .service(web::resource("feature/{id}")
@@ -287,8 +299,7 @@ pub async fn start(
         .bind(format!("0.0.0.0:{}", port.unwrap_or(8000)).as_str())
         .unwrap()
         .run()
-        .await
-        .unwrap();
+        .await;
 }
 
 #[derive(Deserialize, Debug)]

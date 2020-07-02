@@ -22,10 +22,10 @@ pub struct PGStream {
 impl futures::stream::Stream for PGStream {
     type Item = Result<Bytes, HecateError>;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Option<Self::Item>> {
         let rows = match self.trans.query(&*format!("FETCH 1000 FROM {};", &self.cursor), &[]) {
             Ok(rows) => rows,
-            Err(err) => { return Poll::Ready(None) }
+            Err(_err) => { return Poll::Ready(None) }
         };
 
         if rows.is_empty() {

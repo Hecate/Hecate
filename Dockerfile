@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 ENV SHELL /bin/bash
@@ -7,7 +7,7 @@ ENV SHELL /bin/bash
 RUN apt-get update -y \
     && apt-get install -y wget gnupg2 \
     && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
-    && echo "deb http://apt.postgresql.org/pub/repos/apt/ bionic"-pgdg main | tee /etc/apt/sources.list.d/pgdg.list \
+    && echo "deb http://apt.postgresql.org/pub/repos/apt/ focal"-pgdg main | tee /etc/apt/sources.list.d/pgdg.list \
     && apt-get update -y \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y \
         software-properties-common \
