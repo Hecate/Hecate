@@ -2,6 +2,7 @@ use crate::err::HecateError;
 use actix_http::httpmessage::HttpMessage;
 use actix_web::http::header::{HeaderName, HeaderValue};
 use std::default::Default;
+use futures::future::Ready;
 use std::str::FromStr;
 
 pub mod config;
@@ -466,11 +467,11 @@ impl Auth {
 
 impl actix_web::FromRequest for Auth {
     type Error = HecateError;
-    type Future = Result<Self, Self::Error>;
+    type Future = Ready<Result<Self, Self::Error>>;
     type Config = ();
 
     fn from_request(req: &actix_web::HttpRequest, _payload: &mut actix_web::dev::Payload) -> Self::Future {
-        Ok(Auth::from_headers(req)?)
+        futures::future::ready(Auth::from_headers(req))
     }
 }
 
