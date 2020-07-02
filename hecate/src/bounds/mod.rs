@@ -75,7 +75,7 @@ pub fn list(conn: &impl postgres::GenericConnection, limit: Option<i16>) -> Resu
 }
 
 pub fn get(conn: r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager>, bounds: String) -> Result<PGStream, HecateError> {
-    match PGStream::new(conn, String::from("next_bounds"), String::from(r#"
+    Ok(PGStream::new(conn, String::from("next_bounds"), String::from(r#"
         DECLARE next_bounds CURSOR FOR
             SELECT
                 row_to_json(t)::TEXT
@@ -100,10 +100,7 @@ pub fn get(conn: r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager
                 WHERE
                     ST_Intersects(geo.geom, b.subgeom)
             ) t
-    "#), &[&bounds]) {
-        Ok(stream) => Ok(stream),
-        Err(err) => Err(err)
-    }
+    "#), &[&bounds])?)
 }
 
 pub fn meta(conn: &impl postgres::GenericConnection, name: String) -> Result<serde_json::Value, HecateError> {

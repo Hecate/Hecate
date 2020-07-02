@@ -1,6 +1,6 @@
 use actix_service::{Service, Transform};
 use actix_web::{http, dev::ServiceRequest, dev::ServiceResponse, Error, HttpResponse};
-use futures::future::{ok, Either, Ready};
+use futures::future::{ok, Ready};
 use std::task::Poll;
 use crate::db::DbReplica;
 use crate::user::token::Scope;
@@ -69,11 +69,12 @@ where
         let db = match self.db.get() {
             Ok(db) => db,
             Err(_err) => {
-                return Either::B(ok(req.into_response(
-                    HttpResponse::InternalServerError()
-                        .finish()
-                        .into_body(),
-                )));
+                return Box::pin(async move {
+                    Ok(req.into_response(
+                        HttpResponse::InternalServerError()
+                            .finish()
+                            .into_body()))
+                })
             }
         };
 
@@ -107,27 +108,33 @@ where
                             && path[1] != String::from("login")
                         )
                     {
-                        return Either::B(ok(req.into_response(
-                            HttpResponse::Found()
-                                .cookie(cookie)
-                                .header(http::header::LOCATION, "/admin/login/index.html")
-                                .finish()
-                                .into_body(),
-                        )));
+                        return Box::pin(async move {
+                            Ok(req.into_response(
+                                HttpResponse::Found()
+                                    .cookie(cookie)
+                                    .header(http::header::LOCATION, "/admin/login/index.html")
+                                    .finish()
+                                    .into_body()
+                            ))
+                        });
                     } else {
-                        return Either::B(ok(req.into_response(
-                            HttpResponse::Unauthorized()
-                                .cookie(cookie)
-                                .finish()
-                                .into_body()
-                        )));
+                        return Box::pin(async move {
+                            Ok(req.into_response(
+                                HttpResponse::Unauthorized()
+                                    .cookie(cookie)
+                                    .finish()
+                                    .into_body()
+                            ))
+                        });
                     }
                 } else {
-                    return Either::B(ok(req.into_response(
-                        HttpResponse::Unauthorized()
-                            .finish()
-                            .into_body()
-                    )));
+                    return Box::pin(async move {
+                        Ok(req.into_response(
+                            HttpResponse::Unauthorized()
+                                .finish()
+                                .into_body()
+                        ))
+                    });
                 }
             },
             Ok(auth) => auth
@@ -135,11 +142,13 @@ where
 
         // Disabled accounts should always 401
         if auth.access == AuthAccess::Disabled {
-            return Either::B(ok(req.into_response(
-                HttpResponse::Unauthorized()
+            return Box::pin(async move {
+                Ok(req.into_response(
+                    HttpResponse::Unauthorized()
                     .finish()
                     .into_body(),
-            )));
+                ))
+            });
         }
 
 
@@ -147,13 +156,21 @@ where
         if self.auth == ServerAuthDefault::Public {
             auth.scope = Scope::Full;
             auth.as_headers(&mut req);
-            return Either::A(self.service.call(req));
+            let fut = self.service.call(req);
+            return Box::pin(async move {
+                let res = fut.await?;
+                Ok(res)
+            });
         }
 
         //Session Management is always allowed
         if req.path() == "/api/user/session" || req.path() == "/" {
             auth.as_headers(&mut req);
-            return Either::A(self.service.call(req))
+            let fut = self.service.call(req);
+            return Box::pin(async move {
+                let res = fut.await?;
+                Ok(res)
+            });
         }
 
         if
@@ -165,26 +182,38 @@ where
                 // or allowed if they are for the login page
 
                 if path.len() >= 2 && path[1] == String::from("login") {
-                    return Either::A(self.service.call(req));
+                    let fut = self.service.call(req);
+                    return Box::pin(async move {
+                        let res = fut.await?;
+                        Ok(res)
+                    });
                 } else {
-                    return Either::B(ok(req.into_response(
-                        HttpResponse::Found()
-                            .header(http::header::LOCATION, "/admin/login/index.html")
-                            .finish()
-                            .into_body(),
-                    )));
+                    return Box::pin(async move {
+                        Ok(req.into_response(
+                            HttpResponse::Found()
+                                .header(http::header::LOCATION, "/admin/login/index.html")
+                                .finish()
+                                .into_body(),
+                        ))
+                    });
                 }
             } else {
                 // API Results should simply return a 401
-                return Either::B(ok(req.into_response(
-                    HttpResponse::Unauthorized()
-                        .finish()
-                        .into_body(),
-                )));
+                return Box::pin(async move {
+                    Ok(req.into_response(
+                        HttpResponse::Unauthorized()
+                            .finish()
+                            .into_body(),
+                    ))
+                });
             }
         }
 
         auth.as_headers(&mut req);
-        Either::A(self.service.call(req))
+        let fut = self.service.call(req);
+        Box::pin(async move {
+            let res = fut.await?;
+            Ok(res)
+        })
     }
 }
