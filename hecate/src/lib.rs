@@ -1460,8 +1460,7 @@ async fn features_action(
     let delta_id = match delta::open(&trans, &map, uid) {
         Ok(id) => id,
         Err(err) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback();
             return Err(err);
         }
     };
@@ -1480,8 +1479,7 @@ async fn features_action(
 
         match feature::action(&trans, &schema, &feat, &None) {
             Err(err) => {
-                trans.set_rollback();
-                trans.finish().unwrap();
+                trans.rollback();
                 return Err(err);
             },
             Ok(res) => {
@@ -1493,8 +1491,7 @@ async fn features_action(
     }
 
     if let Err(err) = delta::modify(delta_id, &trans, &fc, uid) {
-        trans.set_rollback();
-        trans.finish().unwrap();
+        trans.rollback();
         return Err(err);
     }
 
@@ -1509,8 +1506,7 @@ async fn features_action(
             Ok(Json(json!(true)))
         },
         Err(err) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback();
             Err(err)
         }
     }
@@ -1570,8 +1566,7 @@ async fn osm_changeset_create(
     let delta_id = match delta::open(&trans, &map, uid) {
         Ok(id) => id,
         Err(err) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback();
             return Err(err);
         }
     };
@@ -1625,9 +1620,7 @@ async fn osm_changeset_modify(
     match delta::is_open(delta_id, &trans) {
         Ok(true) => (),
         _ => {
-            trans.set_rollback();
-            trans.finish().unwrap();
-
+            trans.rollback();
 
             let conflict = format!("The changeset {} was closed at previously", &delta_id);
             return Ok(HttpResponse::build(actix_web::http::StatusCode::CONFLICT)
@@ -1640,8 +1633,7 @@ async fn osm_changeset_modify(
     let map = match osm::to_delta(&body) {
         Ok(map) => map,
         Err(err) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback();
             return Err(HecateError::new(500, err.to_string(), None));
         }
     };
@@ -1649,8 +1641,7 @@ async fn osm_changeset_modify(
     let delta_id = match delta::modify_props(delta_id, &trans, &map, uid) {
         Ok(id) => id,
         Err(err) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback();
             return Err(err);
         }
     };
@@ -1698,8 +1689,7 @@ async fn osm_changeset_upload(
     match delta::is_open(delta_id, &trans) {
         Ok(true) => (),
         _ => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback();
 
             let conflict = format!("The changeset {} was closed at previously", &delta_id);
             return Ok(HttpResponse::build(actix_web::http::StatusCode::CONFLICT)
@@ -1725,8 +1715,7 @@ async fn osm_changeset_upload(
 
         let feat_res = match feature::action(&trans, &schema, &feat, &Some(delta_id)) {
             Err(err) => {
-                trans.set_rollback();
-                trans.finish().unwrap();
+                trans.rollback();
                 return Err(err);
             },
             Ok(feat_res) => {
@@ -1743,8 +1732,7 @@ async fn osm_changeset_upload(
 
     let diffres = match osm::to_diffresult(ids, tree) {
         Err(_) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback();
             return Err(HecateError::new(500, String::from("Could not format diffResult XML"), None));
         },
         Ok(diffres) => diffres
@@ -1753,8 +1741,7 @@ async fn osm_changeset_upload(
     match delta::modify(delta_id, &trans, &fc, uid) {
         Ok (_) => (),
         Err(_) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback();
             return Err(HecateError::new(500, String::from("Could not create delta"), None));
         }
     }
@@ -1772,8 +1759,7 @@ async fn osm_changeset_upload(
                 .body(diffres))
         },
         Err(_) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback();
             Err(HecateError::new(500, String::from("Could not close delta"), None))
         }
     }
@@ -1875,8 +1861,7 @@ async fn feature_action(
     let delta_id = match delta::open(&trans, &map, uid) { // add non feature info to deltas table, get next delta id
         Ok(id) => id,
         Err(err) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback();
             return Err(err);
         }
     };
@@ -1889,8 +1874,7 @@ async fn feature_action(
             }
         },
         Err(err) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback();
             return Err(err);
         }
     }
@@ -1902,8 +1886,7 @@ async fn feature_action(
     };
     // modifies the delta entry to include the features json blob
     if let Err(err) = delta::modify(delta_id, &trans, &fc, uid) {
-        trans.set_rollback();
-        trans.finish().unwrap();
+        trans.rollback();
         return Err(err);
     }
 
@@ -1918,8 +1901,7 @@ async fn feature_action(
             Ok(Json(json!(true)))
         },
         Err(err) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback();
             Err(err)
         }
     }

@@ -734,7 +734,7 @@ pub fn restore(trans: &postgres::Transaction, schema: &Option<valico::json_schem
     }
 }
 
-pub fn get_point_stream(conn: r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager<postgres::Client>>, point: &str) -> Result<PGStream, HecateError> {
+pub fn get_point_stream(conn: postgres::Client, point: &str) -> Result<PGStream, HecateError> {
     let (lng, lat) = validate::point(point)?;
 
     Ok(PGStream::new(conn, String::from("next_features"), String::from(r#"
@@ -758,7 +758,7 @@ pub fn get_point_stream(conn: r2d2::PooledConnection<r2d2_postgres::PostgresConn
     "#), &[&lng, &lat])?)
 }
 
-pub fn get_bbox_stream(conn: r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager<postgres::Client>>, bbox: &[f64]) -> Result<PGStream, HecateError> {
+pub fn get_bbox_stream(conn: postgres::Client, bbox: &[f64]) -> Result<PGStream, HecateError> {
     validate::bbox(bbox)?;
 
     Ok(PGStream::new(conn, String::from("next_features"), String::from(r#"
@@ -865,7 +865,7 @@ pub fn history(conn: &postgres::Client, feat_id: i64) -> Result<serde_json::Valu
     }
 }
 
-pub fn get_point_history_stream(conn: r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager<postgres::Client>>, point: &str) -> Result<PGStream, HecateError> {
+pub fn get_point_history_stream(conn: postgres::Client, point: &str) -> Result<PGStream, HecateError> {
     let (lng, lat) = validate::point(point)?;
 
     Ok(PGStream::new(conn, String::from("next_features"), String::from(r#"
@@ -891,7 +891,7 @@ pub fn get_point_history_stream(conn: r2d2::PooledConnection<r2d2_postgres::Post
     "#), &[&lng, &lat])?)
 }
 
-pub fn get_bbox_history_stream(conn: r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager<postgres::Client>>, bbox: &[f64]) -> Result<PGStream, HecateError> {
+pub fn get_bbox_history_stream(conn: postgres::Client, bbox: &[f64]) -> Result<PGStream, HecateError> {
     validate::bbox(bbox)?;
 
     Ok(PGStream::new(conn, String::from("next_features"), String::from(r#"

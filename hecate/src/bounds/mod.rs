@@ -74,7 +74,7 @@ pub fn list(conn: &postgres::Client, limit: Option<i16>) -> Result<Vec<String>, 
     }
 }
 
-pub fn get(conn: r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager<postgres::Client>>, bounds: String) -> Result<PGStream, HecateError> {
+pub fn get(conn: postgres::Client, bounds: String) -> Result<PGStream, HecateError> {
     Ok(PGStream::new(conn, String::from("next_bounds"), String::from(r#"
         DECLARE next_bounds CURSOR FOR
             SELECT

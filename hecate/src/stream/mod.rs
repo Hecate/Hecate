@@ -16,7 +16,7 @@ pub struct PGStream {
     pending: Option<Vec<u8>>,
     trans: postgres::Transaction<'static>,
     #[allow(dead_code)]
-    conn: Box<r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager<postgres::Client>>>
+    conn: Box<postgres::Client>
 }
 
 impl futures::stream::Stream for PGStream {
