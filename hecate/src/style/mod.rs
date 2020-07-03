@@ -4,7 +4,7 @@ use crate::err::HecateError;
 /// Creates a new GL JS Style under a given user account
 ///
 /// By default styles are private and can only be accessed by a single user
-pub fn create(conn: &postgres::Client, uid: i64, style: &str) -> Result<i64, HecateError> {
+pub fn create(conn: &mut postgres::Client, uid: i64, style: &str) -> Result<i64, HecateError> {
     match conn.query("
         INSERT INTO styles (name, style, uid, public)
             VALUES (
@@ -16,7 +16,7 @@ pub fn create(conn: &postgres::Client, uid: i64, style: &str) -> Result<i64, Hec
             RETURNING id;
     ", &[&style, &uid]) {
         Ok(rows) => {
-            let id = rows.get(0).get(0);
+            let id = rows.get(0).unwrap().get(0);
             Ok(id)
         },
         Err(err) => Err(HecateError::from_db(err))
@@ -25,7 +25,7 @@ pub fn create(conn: &postgres::Client, uid: i64, style: &str) -> Result<i64, Hec
 
 /// Get the style by id, if the style is public, the user need not be logged in,
 /// if the style is private ensure the owner is the requester
-pub fn get(conn: &postgres::Client, uid: &Option<i64>, style_id: i64) -> Result<Value, HecateError> {
+pub fn get(conn: &mut postgres::Client, uid: &Option<i64>, style_id: i64) -> Result<Value, HecateError> {
     match conn.query("
         SELECT
             row_to_json(t) as style
@@ -53,7 +53,7 @@ pub fn get(conn: &postgres::Client, uid: &Option<i64>, style_id: i64) -> Result<
             if rows.len() != 1 {
                 Err(HecateError::new(404, String::from("Style Not Found"), None))
             } else {
-                let style: Value = rows.get(0).get(0);
+                let style: Value = rows.get(0).unwrap().get(0);
 
                 Ok(style)
             }
@@ -62,7 +62,7 @@ pub fn get(conn: &postgres::Client, uid: &Option<i64>, style_id: i64) -> Result<
     }
 }
 
-pub fn update(conn: &postgres::Client, uid: i64, style_id: i64, style: &str) -> Result<bool, HecateError> {
+pub fn update(conn: &mut postgres::Client, uid: i64, style_id: i64, style: &str) -> Result<bool, HecateError> {
     match conn.execute("
         UPDATE styles
             SET
@@ -83,7 +83,7 @@ pub fn update(conn: &postgres::Client, uid: i64, style_id: i64, style: &str) -> 
     }
 }
 
-pub fn access(conn: &postgres::Client, uid: i64, style_id: i64, access: bool) -> Result<bool, HecateError> {
+pub fn access(conn: &mut postgres::Client, uid: i64, style_id: i64, access: bool) -> Result<bool, HecateError> {
     match conn.execute("
         UPDATE styles
             SET
@@ -104,7 +104,7 @@ pub fn access(conn: &postgres::Client, uid: i64, style_id: i64, access: bool) ->
 }
 
 ///Allow the owner of a given style to delete it
-pub fn delete(conn: &postgres::Client, uid: i64, style_id: i64) -> Result<bool, HecateError> {
+pub fn delete(conn: &mut postgres::Client, uid: i64, style_id: i64) -> Result<bool, HecateError> {
     match conn.execute("
         DELETE
             FROM styles
@@ -124,7 +124,7 @@ pub fn delete(conn: &postgres::Client, uid: i64, style_id: i64) -> Result<bool, 
 }
 
 ///Return a list of all styles (public and private) for a given user
-pub fn list_user(conn: &postgres::Client, uid: i64) -> Result<Value, HecateError> {
+pub fn list_user(conn: &mut postgres::Client, uid: i64) -> Result<Value, HecateError> {
     match conn.query("
         SELECT
             COALESCE(JSON_Agg(row_to_json(t)), '[]'::JSON)
@@ -148,7 +148,7 @@ pub fn list_user(conn: &postgres::Client, uid: i64) -> Result<Value, HecateError
             if rows.is_empty() {
                 Err(HecateError::new(404, String::from("Style Not Found"), None))
             } else {
-                let list: Value = rows.get(0).get(0);
+                let list: Value = rows.get(0).unwrap().get(0);
                 Ok(list)
             }
         },
@@ -157,7 +157,7 @@ pub fn list_user(conn: &postgres::Client, uid: i64) -> Result<Value, HecateError
 }
 
 ///Return a list of public styles for a given user
-pub fn list_user_public(conn: &postgres::Client, uid: i64) -> Result<Value, HecateError> {
+pub fn list_user_public(conn: &mut postgres::Client, uid: i64) -> Result<Value, HecateError> {
     match conn.query("
         SELECT
             COALESCE(JSON_Agg(row_to_json(t)), '[]'::JSON)
@@ -182,7 +182,7 @@ pub fn list_user_public(conn: &postgres::Client, uid: i64) -> Result<Value, Heca
             if rows.is_empty() {
                 Err(HecateError::new(404, String::from("Style Not Found"), None))
             } else {
-                let list: Value = rows.get(0).get(0);
+                let list: Value = rows.get(0).unwrap().get(0);
                 Ok(list)
             }
         },
@@ -190,7 +190,7 @@ pub fn list_user_public(conn: &postgres::Client, uid: i64) -> Result<Value, Heca
     }
 }
 
-pub fn list_public(conn: &postgres::Client) -> Result<Value, HecateError> {
+pub fn list_public(conn: &mut postgres::Client) -> Result<Value, HecateError> {
     match conn.query("
         SELECT
             COALESCE(JSON_Agg(row_to_json(t)), '[]'::JSON)
@@ -214,7 +214,7 @@ pub fn list_public(conn: &postgres::Client) -> Result<Value, HecateError> {
             if rows.is_empty() {
                 Err(HecateError::new(404, String::from("Style Not Found"), None))
             } else {
-                let list: Value = rows.get(0).get(0);
+                let list: Value = rows.get(0).unwrap().get(0);
                 Ok(list)
             }
         },

@@ -15,7 +15,7 @@ impl Meta {
         }
     }
 
-    pub fn get(conn: &postgres::Client, key: impl ToString) -> Result<Self, HecateError> {
+    pub fn get(conn: &mut postgres::Client, key: impl ToString) -> Result<Self, HecateError> {
         let key = key.to_string();
 
         match conn.query("
@@ -30,14 +30,14 @@ impl Meta {
                 if rows.is_empty() {
                     Err(HecateError::new(404, String::from("Key not found"), None))
                 } else {
-                    Ok(Meta::new(key, rows.get(0).get(0)))
+                    Ok(Meta::new(key, rows.get(0).unwrap().get(0)))
                 }
             },
             Err(err) => Err(HecateError::from_db(err))
         }
     }
 
-    pub fn set(&self, conn: &postgres::Client) -> Result<bool, HecateError> {
+    pub fn set(&self, conn: &mut postgres::Client) -> Result<bool, HecateError> {
         match conn.query("
             INSERT INTO meta (key, value) VALUES ($1, $2)
                 ON CONFLICT (key) DO
@@ -50,7 +50,7 @@ impl Meta {
         }
     }
 
-    pub fn delete(conn: &postgres::Client, key: &str) -> Result<bool, HecateError> {
+    pub fn delete(conn: &mut postgres::Client, key: &str) -> Result<bool, HecateError> {
         match conn.query("
             DELETE FROM meta WHERE key = $1
         ", &[ &key ]) {
@@ -60,7 +60,7 @@ impl Meta {
     }
 }
 
-pub fn list(conn: &postgres::Client) -> Result<Vec<String>, HecateError> {
+pub fn list(conn: &mut postgres::Client) -> Result<Vec<String>, HecateError> {
     match conn.query("
         SELECT key FROM meta ORDER BY key
     ", &[]) {

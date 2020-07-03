@@ -1,6 +1,6 @@
 use crate::err::HecateError;
 
-pub fn get_json(conn: &postgres::Client) -> Result<serde_json::Value, HecateError> {
+pub fn get_json(conn: &mut postgres::Client) -> Result<serde_json::Value, HecateError> {
     match conn.query("
         SELECT COALESCE(row_to_json(d), 'false'::JSON)
         FROM (
@@ -38,13 +38,13 @@ pub fn get_json(conn: &postgres::Client) -> Result<serde_json::Value, HecateErro
     ", &[]) {
         Err(err) => Err(HecateError::from_db(err)),
         Ok(res) => {
-            let d_json: serde_json::Value = res.get(0).get(0);
+            let d_json: serde_json::Value = res.get(0).unwrap().get(0);
             Ok(d_json)
         }
     }
 }
 
-pub fn regen(conn: &postgres::Client) -> Result<bool, HecateError> {
+pub fn regen(conn: &mut postgres::Client) -> Result<bool, HecateError> {
     match conn.execute("
         ANALYZE geo;
     ", &[]) {

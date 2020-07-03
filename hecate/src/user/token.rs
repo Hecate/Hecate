@@ -57,7 +57,7 @@ impl Token {
         }
     }
 
-    pub fn create(conn: &postgres::Client, name: impl ToString, uid: i64, hours: Option<i64>, scope: Scope) -> Result<Self, HecateError> {
+    pub fn create(conn: &mut postgres::Client, name: impl ToString, uid: i64, hours: Option<i64>, scope: Scope) -> Result<Self, HecateError> {
         let res = match hours {
             None => match conn.query("
                 INSERT INTO users_tokens (id, name, uid, token, scope)
@@ -104,16 +104,16 @@ impl Token {
             }
         };
 
-        let id: String = res.get(0).get(0);
-        let name: String = res.get(0).get(1);
-        let uid: i64 = res.get(0).get(2);
-        let token: String = res.get(0).get(3);
-        let expiry: Option<String> = res.get(0).get(4);
+        let id: String = res.get(0).unwrap().get(0);
+        let name: String = res.get(0).unwrap().get(1);
+        let uid: i64 = res.get(0).unwrap().get(2);
+        let token: String = res.get(0).unwrap().get(3);
+        let expiry: Option<String> = res.get(0).unwrap().get(4);
 
         Ok(Token::new(Some(id), name, uid, Some(token), expiry, scope))
     }
 
-    pub fn get(conn: &postgres::Client, uid: i64, token: &str) -> Result<Self, HecateError> {
+    pub fn get(conn: &mut postgres::Client, uid: i64, token: &str) -> Result<Self, HecateError> {
         match conn.query("
             SELECT
                 id::TEXT AS id,
@@ -131,11 +131,11 @@ impl Token {
                 )
         ", &[ &uid, &token ]) {
             Ok(res) => {
-                let id: String = res.get(0).get(0);
-                let name: String = res.get(0).get(1);
-                let uid: i64 = res.get(0).get(2);
-                let expiry: Option<String> = res.get(0).get(3);
-                let scope: String = res.get(0).get(4);
+                let id: String = res.get(0).unwrap().get(0);
+                let name: String = res.get(0).unwrap().get(1);
+                let uid: i64 = res.get(0).unwrap().get(2);
+                let expiry: Option<String> = res.get(0).unwrap().get(3);
+                let scope: String = res.get(0).unwrap().get(4);
 
                 let scope = match scope.as_str() {
                     "full" => Scope::Full,
@@ -150,7 +150,7 @@ impl Token {
     }
 }
 
-pub fn destroy(conn: &postgres::Client, uid: i64, token: &str) -> Result<bool, HecateError> {
+pub fn destroy(conn: &mut postgres::Client, uid: i64, token: &str) -> Result<bool, HecateError> {
     if token.contains('-') {
         match conn.query("
             DELETE FROM users_tokens
@@ -174,7 +174,7 @@ pub fn destroy(conn: &postgres::Client, uid: i64, token: &str) -> Result<bool, H
     }
 }
 
-pub fn list(conn: &postgres::Client, uid: i64) -> Result<Vec<Token>, HecateError> {
+pub fn list(conn: &mut postgres::Client, uid: i64) -> Result<Vec<Token>, HecateError> {
     match conn.query("
         SELECT
             id::TEXT,

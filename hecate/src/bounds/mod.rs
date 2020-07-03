@@ -1,7 +1,7 @@
 use crate::err::HecateError;
 use crate::stream::PGStream;
 
-pub fn set(conn: &postgres::Client, name: &str, feat: &serde_json::Value) -> Result<bool, HecateError> {
+pub fn set(conn: &mut postgres::Client, name: &str, feat: &serde_json::Value) -> Result<bool, HecateError> {
     match conn.execute("
         INSERT INTO bounds (name, geom, props)
             VALUES (
@@ -19,7 +19,7 @@ pub fn set(conn: &postgres::Client, name: &str, feat: &serde_json::Value) -> Res
     }
 }
 
-pub fn delete(conn: &postgres::Client, name: &str) -> Result<bool, HecateError> {
+pub fn delete(conn: &mut postgres::Client, name: &str) -> Result<bool, HecateError> {
     match conn.execute("
         DELETE FROM bounds WHERE name = $1
     ", &[ &name ]) {
@@ -28,7 +28,7 @@ pub fn delete(conn: &postgres::Client, name: &str) -> Result<bool, HecateError> 
     }
 }
 
-pub fn filter(conn: &postgres::Client, prefix: &str, limit: Option<i16>) -> Result<Vec<String>, HecateError> {
+pub fn filter(conn: &mut postgres::Client, prefix: &str, limit: Option<i16>) -> Result<Vec<String>, HecateError> {
     let limit: i16 = match limit {
         None => 100,
         Some(limit) => if limit > 100 { 100 } else { limit }
@@ -54,7 +54,7 @@ pub fn filter(conn: &postgres::Client, prefix: &str, limit: Option<i16>) -> Resu
     }
 }
 
-pub fn list(conn: &postgres::Client, limit: Option<i16>) -> Result<Vec<String>, HecateError> {
+pub fn list(conn: &mut postgres::Client, limit: Option<i16>) -> Result<Vec<String>, HecateError> {
     match conn.query("
         SELECT name
         FROM bounds
@@ -103,7 +103,7 @@ pub fn get(conn: postgres::Client, bounds: String) -> Result<PGStream, HecateErr
     "#), &[&bounds])?)
 }
 
-pub fn meta(conn: &postgres::Client, name: String) -> Result<serde_json::Value, HecateError> {
+pub fn meta(conn: &mut postgres::Client, name: String) -> Result<serde_json::Value, HecateError> {
     match conn.query("
         SELECT
             JSON_Build_Object(
@@ -122,7 +122,7 @@ pub fn meta(conn: &postgres::Client, name: String) -> Result<serde_json::Value, 
                 return Err(HecateError::new(404, String::from("bound not found"), None));
             }
 
-            let bound: serde_json::Value = rows.get(0).get(0);
+            let bound: serde_json::Value = rows.get(0).unwrap().get(0);
 
             Ok(bound)
         },
@@ -130,7 +130,7 @@ pub fn meta(conn: &postgres::Client, name: String) -> Result<serde_json::Value, 
     }
 }
 
-pub fn stats_json(conn: &postgres::Client, bounds: String) -> Result<serde_json::Value, HecateError> {
+pub fn stats_json(conn: &mut postgres::Client, bounds: String) -> Result<serde_json::Value, HecateError> {
     match conn.query("
         SELECT
             row_to_json(t)
@@ -160,7 +160,7 @@ pub fn stats_json(conn: &postgres::Client, bounds: String) -> Result<serde_json:
                 AND bounds.name = $1
         ) t
     ", &[ &bounds ]) {
-        Ok(rows) => Ok(rows.get(0).get(0)),
+        Ok(rows) => Ok(rows.get(0).unwrap().get(0)),
         Err(err) => Err(HecateError::from_db(err))
     }
 }

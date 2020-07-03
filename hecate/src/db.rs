@@ -1,6 +1,42 @@
 use crate::err::HecateError;
+use r2d2::ManageConnection;
+use postgres::{Config, Client};
+use tokio_postgres::Error;
+use tokio_postgres::NoTls;
 
-use r2d2_postgres::PostgresConnectionManager;
+pub type PgPool = r2d2::Pool<PostgresConnectionManager<Client>>;
+pub type PgPoolConn = r2d2::PooledConnection<PostgresConnectionManager<Client>>;
+
+pub struct PostgresConnectionManager<Client> {
+    config: Config,
+    tls_connector: Box<dyn Fn(&Config) -> Result<Client, Error> + Send + Sync>,
+}
+
+impl PostgresConnectionManager<Client> {
+    pub fn new(config: Config, tls_connector: Box<dyn Fn(&Config) -> Result<Client, Error> + Send + Sync>) -> PostgresConnectionManager<Client> {
+        PostgresConnectionManager {
+            config,
+            tls_connector,
+        }
+    }
+}
+
+impl ManageConnection for PostgresConnectionManager<Client> {
+    type Connection = Client;
+    type Error = Error;
+
+    fn connect(&self) -> Result<Client, Error> {
+        (self.tls_connector)(&self.config)
+    }
+
+    fn is_valid(&self, client: &mut Client) -> Result<(), Error> {
+        client.simple_query("").map(|_| ())
+    }
+
+    fn has_broken(&self, client: &mut Client) -> bool {
+        client.is_closed()
+    }
+}
 
 use rand::prelude::*;
 
@@ -10,6 +46,8 @@ pub struct Database {
     pub replica: Vec<String>,
     pub sandbox: Vec<String>
 }
+
+
 
 impl Database {
     pub fn new(main: String, replica: Vec<String>, sandbox: Vec<String>) -> Self {
@@ -21,14 +59,12 @@ impl Database {
     }
 }
 
-pub type PgPool = r2d2::Pool<PostgresConnectionManager<postgres::Client>>;
-pub type PgPoolConn = r2d2::PooledConnection<PostgresConnectionManager<postgres::Client>>;
-
 pub fn init_pool(database: &str) -> PgPool {
-    let manager = ::r2d2_postgres::PostgresConnectionManager::new(
-        format!("postgres://{}", database),
-        postgres::NoTls
-    ).unwrap();
+    let tls = NoTls;
+    let manager = PostgresConnectionManager::new(
+        format!("postgres://{}", database).parse().unwrap(),
+        Box::new(move |config| config.connect(tls.clone()))
+    );
 
     match r2d2::Pool::builder().max_size(15).build(manager) {
         Ok(pool) => pool,
@@ -46,7 +82,7 @@ impl DbReplica {
         DbReplica(database)
     }
 
-    pub fn get(&self) -> Result<postgres::Client, HecateError> {
+    pub fn get(&self) -> Result<Client, HecateError> {
         match self.0 {
             None => Err(HecateError::new(503, String::from("No Database Replica Connection"), None)),
             Some(ref db_replica) => {
@@ -54,7 +90,7 @@ impl DbReplica {
                 let db_replica_it = rng.gen_range(0, db_replica.len());
 
                 match db_replica.get(db_replica_it).unwrap().get() {
-                    Ok(conn) => Ok(conn),
+                    Ok(conn) => Ok(*conn),
                     Err(_) => Err(HecateError::new(503, String::from("Could not connect to database"), None))
                 }
             }
@@ -77,7 +113,7 @@ impl DbSandbox {
                 let db_sandbox_it = rng.gen_range(0, db_sandbox.len());
 
                 match db_sandbox.get(db_sandbox_it).unwrap().get() {
-                    Ok(conn) => Ok(conn),
+                    Ok(conn) => Ok(*conn),
                     Err(_) => Err(HecateError::new(503, String::from("Could not connect to database"), None))
                 }
             }
@@ -94,7 +130,7 @@ impl DbReadWrite {
 
     pub fn get(&self) -> Result<postgres::Client, HecateError> {
         match self.0.get() {
-            Ok(conn) => Ok(conn),
+            Ok(conn) => Ok(*conn),
             Err(_) => Err(HecateError::new(503, String::from("Could not connect to database"), None))
         }
     }

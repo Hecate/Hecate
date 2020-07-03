@@ -255,7 +255,7 @@ impl Auth {
         })
     }
 
-    pub fn from_sreq(req: &mut actix_web::dev::ServiceRequest, conn: &postgres::Client) -> Result<Self, HecateError> {
+    pub fn from_sreq(req: &mut actix_web::dev::ServiceRequest, conn: &mut postgres::Client) -> Result<Self, HecateError> {
         let mut auth = Auth::new();
 
         let path: Vec<String> = req.path().split('/').map(|p| {
@@ -368,7 +368,7 @@ impl Auth {
     ///
     /// Note: Once validated the token/basic auth used to validate the user will be set to null
     ///
-    pub fn validate(&mut self, conn: &postgres::Client) -> Result<bool, HecateError> {
+    pub fn validate(&mut self, conn: &mut postgres::Client) -> Result<bool, HecateError> {
         if self.basic.is_some() {
             match conn.query("
                 SELECT
@@ -384,8 +384,8 @@ impl Auth {
                         return Err(config::not_authed());
                     }
 
-                    let uid: i64 = res.get(0).get(0);
-                    let access: Option<String> = res.get(0).get(1);
+                    let uid: i64 = res.get(0).unwrap().get(0);
+                    let access: Option<String> = res.get(0).unwrap().get(1);
 
                     let access = match access {
                         Some(access) => {
@@ -429,9 +429,9 @@ impl Auth {
                     if res.is_empty() {
                         return Err(config::not_authed());
                     }
-                    let uid: i64 = res.get(0).get(0);
-                    let scope: Option<String> = res.get(0).get(1);
-                    let access: Option<String> = res.get(0).get(2);
+                    let uid: i64 = res.get(0).unwrap().get(0);
+                    let scope: Option<String> = res.get(0).unwrap().get(1);
+                    let access: Option<String> = res.get(0).unwrap().get(2);
 
                     let scope = match &scope {
                         None => Scope::Read,

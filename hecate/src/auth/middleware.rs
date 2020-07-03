@@ -66,7 +66,7 @@ where
     }
 
     fn call(&mut self, mut req: ServiceRequest) -> Self::Future {
-        let db = match self.db.get() {
+        let mut db = match self.db.get() {
             Ok(db) => db,
             Err(_err) => {
                 return Box::pin(async move {
@@ -88,7 +88,7 @@ where
             true
         }).collect();
 
-        let mut auth = match Auth::from_sreq(&mut req, &*db) {
+        let mut auth = match Auth::from_sreq(&mut req, &mut db) {
             Err(err) => {
                 if err.invalidate {
                     let cookie = actix_http::http::Cookie::build("session", String::from(""))

@@ -53,7 +53,7 @@ pub enum Action {
     Style
 }
 
-pub fn list(conn: &postgres::Client, action: Action) -> Result<Vec<WebHook>, HecateError> {
+pub fn list(conn: &mut postgres::Client, action: Action) -> Result<Vec<WebHook>, HecateError> {
     let action = match action {
         Action::All => "",
         Action::User => "WHERE actions @>ARRAY['user']",
@@ -86,7 +86,7 @@ pub fn list(conn: &postgres::Client, action: Action) -> Result<Vec<WebHook>, Hec
     }
 }
 
-pub fn get(conn: &postgres::Client, id: i64) -> Result<WebHook, HecateError> {
+pub fn get(conn: &mut postgres::Client, id: i64) -> Result<WebHook, HecateError> {
     match conn.query("
         SELECT
             id,
@@ -104,14 +104,14 @@ pub fn get(conn: &postgres::Client, id: i64) -> Result<WebHook, HecateError> {
                 return Err(HecateError::new(404, String::from("Webhook Not Found"), None));
             }
 
-            let result = results.get(0);
+            let result = results.get(0).unwrap();
             Ok(WebHook::new(result.get(0), result.get(1), result.get(2), result.get(3), result.get(4)))
         },
         Err(err) => Err(HecateError::from_db(err))
     }
 }
 
-pub fn delete(conn: &postgres::Client, id: i64) -> Result<bool, HecateError> {
+pub fn delete(conn: &mut postgres::Client, id: i64) -> Result<bool, HecateError> {
     match conn.execute("
         DELETE FROM webhooks
         WHERE id = $1
@@ -121,7 +121,7 @@ pub fn delete(conn: &postgres::Client, id: i64) -> Result<bool, HecateError> {
     }
 }
 
-pub fn create(conn: &postgres::Client, mut webhook: WebHook) -> Result<WebHook, HecateError> {
+pub fn create(conn: &mut postgres::Client, mut webhook: WebHook) -> Result<WebHook, HecateError> {
     if !is_valid_action(&webhook.actions) {
         return Err(HecateError::new(400, String::from("Invalid Action"), None));
     }
@@ -153,7 +153,7 @@ pub fn create(conn: &postgres::Client, mut webhook: WebHook) -> Result<WebHook, 
             Returning id
     ", &[&webhook.name, &webhook.actions, &webhook.url, &webhook.secret]) {
         Ok(results) => {
-            let id = results.get(0).get(0);
+            let id = results.get(0).unwrap().get(0);
 
             webhook.id = Some(id);
 
@@ -163,7 +163,7 @@ pub fn create(conn: &postgres::Client, mut webhook: WebHook) -> Result<WebHook, 
     }
 }
 
-pub fn update(conn: &postgres::Client, webhook: WebHook) -> Result<WebHook, HecateError> {
+pub fn update(conn: &mut postgres::Client, webhook: WebHook) -> Result<WebHook, HecateError> {
     if !is_valid_action(&webhook.actions) {
         return Err(HecateError::new(400, String::from("Invalid Action"), None));
     }
@@ -200,7 +200,7 @@ pub fn is_valid_action(actions: &[String]) -> bool {
     true
 }
 
-pub fn send(conn: &postgres::Client, task: &worker::TaskType) -> Result<(), HecateError> {
+pub fn send(conn: &mut postgres::Client, task: &worker::TaskType) -> Result<(), HecateError> {
     let action = match task {
         worker::TaskType::Delta(_) => Action::Delta,
         worker::TaskType::User(_) => Action::User,

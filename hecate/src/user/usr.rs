@@ -38,7 +38,7 @@ impl User {
         })
     }
 
-    pub fn reset(conn: &postgres::Client, uid: i64, current: &String, new: &String) -> Result<bool, HecateError> {
+    pub fn reset(conn: &mut postgres::Client, uid: i64, current: &String, new: &String) -> Result<bool, HecateError> {
         validate::password(&new)?;
 
         match conn.query("
@@ -81,7 +81,7 @@ impl User {
         };
     }
 
-    pub fn set(&self, conn: &postgres::Client) -> Result<bool, HecateError> {
+    pub fn set(&self, conn: &mut postgres::Client) -> Result<bool, HecateError> {
         if self.id.is_some() {
             match conn.query("
                 UPDATE users
@@ -141,7 +141,7 @@ impl User {
             ", &[ &self.username, &password, &self.email, &self.meta, &self.access.as_ref().unwrap_or(&String::from("default")) ]) {
                 Ok(_) => Ok(true),
                 Err(err) => {
-                    if err.as_db().is_some() && err.as_db().unwrap().code.code() == "23505" {
+                    if err.code() == Some(&tokio_postgres::error::SqlState::from_code("23505")) {
                         Err(HecateError::new(400, String::from("User/Email Exists"), None))
                     } else {
                         Err(HecateError::from_db(err))
@@ -151,7 +151,7 @@ impl User {
         }
     }
 
-    pub fn get(conn: &postgres::Client, uid: i64) -> Result<Self, HecateError> {
+    pub fn get(conn: &mut postgres::Client, uid: i64) -> Result<Self, HecateError> {
         match conn.query("
             SELECT row_to_json(u)
             FROM (
@@ -167,7 +167,7 @@ impl User {
             ) u
         ", &[ &uid ]) {
             Ok(res) => {
-                let res: serde_json::Value = res.get(0).get(0);
+                let res: serde_json::Value = res.get(0).unwrap().get(0);
 
                 let user: User = match serde_json::from_value(res) {
                     Ok(user) => {
@@ -186,7 +186,7 @@ impl User {
 
 }
 
-pub fn list(conn: &postgres::Client, limit: Option<i16>) -> Result<serde_json::Value, HecateError> {
+pub fn list(conn: &mut postgres::Client, limit: Option<i16>) -> Result<serde_json::Value, HecateError> {
     let limit: i16 = match limit {
         None => 100,
         Some(limit) => if limit > 100 { 100 } else { limit }
@@ -207,12 +207,12 @@ pub fn list(conn: &postgres::Client, limit: Option<i16>) -> Result<serde_json::V
             LIMIT $1::SmallInt
         ) row;
     ", &[ &limit ]) {
-        Ok(rows) => Ok(rows.get(0).get(0)),
+        Ok(rows) => Ok(rows.get(0).unwrap().get(0)),
         Err(err) => Err(HecateError::from_db(err))
     }
 }
 
-pub fn filter(conn: &postgres::Client, filter: &str, limit: Option<i16>) -> Result<serde_json::Value, HecateError> {
+pub fn filter(conn: &mut postgres::Client, filter: &str, limit: Option<i16>) -> Result<serde_json::Value, HecateError> {
     let limit: i16 = match limit {
         None => 100,
         Some(limit) => if limit > 100 { 100 } else { limit }
@@ -235,7 +235,7 @@ pub fn filter(conn: &postgres::Client, filter: &str, limit: Option<i16>) -> Resu
             LIMIT $2::SmallInt
         ) row;
     ", &[ &filter, &limit ]) {
-        Ok(rows) => Ok(rows.get(0).get(0)),
+        Ok(rows) => Ok(rows.get(0).unwrap().get(0)),
         Err(err) => Err(HecateError::from_db(err))
     }
 }

@@ -51,21 +51,12 @@ impl HecateError {
     pub fn from_db(error: postgres::error::Error) -> Self {
         println!("Database Error: {:?}", &error);
 
-        match error.as_db() {
-            Some(db_err) => HecateError {
-                code: 500,
-                custom_json: None,
-                invalidate: false,
-                safe_error: String::from("Database Error"),
-                full_error: format!("{}", db_err)
-            },
-            None => HecateError {
-                code: 500,
-                custom_json: None,
-                invalidate: false,
-                safe_error: String::from("Database Error"),
-                full_error: format!("{}", error)
-            }
+        HecateError {
+            code: 500,
+            custom_json: None,
+            invalidate: false,
+            safe_error: String::from("Database Error"),
+            full_error: format!("{}", error)
         }
     }
 

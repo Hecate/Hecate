@@ -53,7 +53,7 @@ impl Worker {
 /// Main logic for web worker
 ///
 fn worker(rx: crossbeam::Receiver<Task>, database: String) {
-    let conn = postgres::Client::connect(format!("postgres://{}", database), postgres::NoTls).unwrap();
+    let mut conn = postgres::Client::connect(format!("postgres://{}", database).as_str(), postgres::NoTls).unwrap();
 
     loop {
         let task = match rx.recv() {
@@ -64,19 +64,19 @@ fn worker(rx: crossbeam::Receiver<Task>, database: String) {
             }
         };
 
-        if let Err(err) = webhooks::send(&conn, &task.job) {
+        if let Err(err) = webhooks::send(&mut conn, &task.job) {
             println!("HecateError: {:?}", &err.to_string());
         }
 
         if let TaskType::Delta(delta_id) = task.job {
-            let tiles = delta::tiles(&conn, delta_id, 14, 17).unwrap();
+            let tiles = delta::tiles(&mut conn, delta_id, 14, 17).unwrap();
 
             if tiles.is_empty() {
                 continue;
             }
 
             for tile in tiles {
-                if mvt::regen(&conn, tile.2, tile.0 as u32, tile.1 as u32).is_some() {
+                if mvt::regen(&mut conn, tile.2, tile.0 as u32, tile.1 as u32).is_some() {
                     println!("Daemon: Failed to generate tile: {:?}", tile);
                 }
             }

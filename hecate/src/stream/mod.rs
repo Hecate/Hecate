@@ -23,7 +23,8 @@ impl futures::stream::Stream for PGStream {
     type Item = Result<Bytes, HecateError>;
 
     fn poll_next(mut self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Option<Self::Item>> {
-        let rows = match self.trans.query(&*format!("FETCH 1000 FROM {};", &self.cursor), &[]) {
+        let cursor = self.cursor.to_string();
+        let rows = match self.trans.query(&*format!("FETCH 1000 FROM {};", &cursor), &[]) {
             Ok(rows) => rows,
             Err(_err) => { return Poll::Ready(None) }
         };
@@ -45,7 +46,7 @@ impl futures::stream::Stream for PGStream {
         let mut feats = String::new();
 
         for row_it in 0..rows.len() {
-            let feat: String = rows.get(row_it).get(0);
+            let feat: String = rows.get(row_it).unwrap().get(0);
             feats.push_str(&*feat);
             feats.push('\n');
         }
@@ -74,7 +75,7 @@ impl std::io::Read for PGStream {
 
                 if !rows.is_empty() {
                     for row_it in 0..rows.len() {
-                        let feat: String = rows.get(row_it).get(0);
+                        let feat: String = rows.get(row_it).unwrap().get(0);
                         write.append(&mut feat.into_bytes().to_vec());
                         write.push(0x0A);
                     }
@@ -116,10 +117,10 @@ impl std::io::Read for PGStream {
 }
 
 impl PGStream {
-    pub fn new(pg_conn: r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager<postgres::Client>>, cursor: String, query: String, params: &[&dyn ToSql]) -> Result<Self, HecateError> {
-        let conn = Box::new(pg_conn);
+    pub fn new(pg_conn: postgres::Client, cursor: String, query: String, params: &[&(dyn ToSql + std::marker::Sync)]) -> Result<Self, HecateError> {
+        let mut conn = Box::new(pg_conn);
 
-        let trans: postgres::Transaction = unsafe {
+        let mut trans: postgres::Transaction = unsafe {
             mem::transmute(conn.transaction().unwrap())
         };
 
