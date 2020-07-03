@@ -10,6 +10,38 @@
 
 # Version History
 
+## v0.87.0
+
+- :arrow_up: Update to `async`/`await` and `actix@2`
+
+## v0.86.4
+
+- :rocket: Fix a bunch of clippy warnings
+
+## v0.86.3
+
+- :rocket: Error objects no longer need `.description()` call
+
+## v0.86.2
+
+- :bug: Fix postgis/postgres version checking
+
+## v0.86.1
+
+- :rocket: meta data endpoint now returns proper 404 if the key is not found
+- :pencil2: Rewrite vast majority of docs in API Blueprint
+
+## v0.86.0
+
+- :tada: Add support for HTTP Bearer based auth, making tokens much more useful
+
+## v0.85.0
+
+- :tada: [UI] Add ability to list & manage user's auth tokens
+- :tada: Add token listing endpoint
+- :rocket: Give each token a unique ID that it can be deleted with
+- :rocket: Add ability to create non-expiring API tokens
+
 ## v0.84.0
 
 - :tada: Add properties to VT output

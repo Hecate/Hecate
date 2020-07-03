@@ -19,11 +19,16 @@ impl Meta {
         let key = key.to_string();
 
         match conn.query("
-            SELECT value::JSON FROM meta WHERE key = $1;
+            SELECT
+                value::JSON
+            FROM
+                meta
+            WHERE
+                key = $1;
         ", &[&key]) {
             Ok(rows) => {
                 if rows.is_empty() {
-                    Ok(Meta::new(key, json!(false)))
+                    Err(HecateError::new(404, String::from("Key not found"), None))
                 } else {
                     Ok(Meta::new(key, rows.get(0).get(0)))
                 }
@@ -45,6 +50,14 @@ impl Meta {
         }
     }
 
+    pub fn delete(conn: &postgres::Client, key: &str) -> Result<bool, HecateError> {
+        match conn.query("
+            DELETE FROM meta WHERE key = $1
+        ", &[ &key ]) {
+            Ok(_) => Ok(true),
+            Err(err) => Err(HecateError::from_db(err))
+        }
+    }
 }
 
 pub fn list(conn: &postgres::Client) -> Result<Vec<String>, HecateError> {
@@ -64,11 +77,3 @@ pub fn list(conn: &postgres::Client) -> Result<Vec<String>, HecateError> {
     }
 }
 
-pub fn delete(conn: &postgres::Client, key: &str) -> Result<bool, HecateError> {
-    match conn.query("
-        DELETE FROM meta WHERE key = $1
-    ", &[ &key ]) {
-        Ok(_) => Ok(true),
-        Err(err) => Err(HecateError::from_db(err))
-    }
-}

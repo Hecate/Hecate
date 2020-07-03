@@ -1,6 +1,5 @@
 use crate::err::HecateError;
 
-use r2d2::{Pool, PooledConnection};
 use r2d2_postgres::PostgresConnectionManager;
 
 use rand::prelude::*;
@@ -22,28 +21,32 @@ impl Database {
     }
 }
 
-pub type PostgresPool = Pool<PostgresConnectionManager<postgres::Client>>;
-pub type PostgresPooledConnection = PooledConnection<PostgresConnectionManager<postgres::Client>>;
+pub type PgPool = r2d2::Pool<PostgresConnectionManager<postgres::Client>>;
+pub type PgPoolConn = r2d2::PooledConnection<PostgresConnectionManager<postgres::Client>>;
 
-pub fn init_pool(database: &str) -> r2d2::Pool<r2d2_postgres::PostgresConnectionManager<postgres::Client>> {
-    let manager = ::r2d2_postgres::PostgresConnectionManager::new(format!("postgres://{}", database), postgres::NoTls).unwrap();
+pub fn init_pool(database: &str) -> PgPool {
+    let manager = ::r2d2_postgres::PostgresConnectionManager::new(
+        format!("postgres://{}", database),
+        postgres::NoTls
+    ).unwrap();
+
     match r2d2::Pool::builder().max_size(15).build(manager) {
         Ok(pool) => pool,
-        Err(_) => {
-            println!("ERROR: Failed to connect to database");
+        Err(err) => {
+            println!("ERROR: Failed to connect to database: {}", err);
             std::process::exit(1);
         }
     }
 }
 
 #[derive(Clone)]
-pub struct DbReplica(pub Option<Vec<r2d2::Pool<r2d2_postgres::PostgresConnectionManager<postgres::Client>>>>);
+pub struct DbReplica(pub Option<Vec<PgPool>>);
 impl DbReplica {
-    pub fn new(database: Option<Vec<r2d2::Pool<r2d2_postgres::PostgresConnectionManager<postgres::Client>>>>) -> Self {
+    pub fn new(database: Option<Vec<PgPool>>) -> Self {
         DbReplica(database)
     }
 
-    pub fn get(&self) -> Result<r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager<postgres::Client>>, HecateError> {
+    pub fn get(&self) -> Result<postgres::Client, HecateError> {
         match self.0 {
             None => Err(HecateError::new(503, String::from("No Database Replica Connection"), None)),
             Some(ref db_replica) => {
@@ -60,13 +63,13 @@ impl DbReplica {
 }
 
 #[derive(Clone)]
-pub struct DbSandbox(pub Option<Vec<r2d2::Pool<r2d2_postgres::PostgresConnectionManager<postgres::Client>>>>);
+pub struct DbSandbox(pub Option<Vec<PgPool>>);
 impl DbSandbox {
-    pub fn new(database: Option<Vec<r2d2::Pool<r2d2_postgres::PostgresConnectionManager<postgres::Client>>>>) -> Self {
+    pub fn new(database: Option<Vec<PgPool>>) -> Self {
         DbSandbox(database)
     }
 
-    pub fn get(&self) -> Result<r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager<postgres::Client>>, HecateError> {
+    pub fn get(&self) -> Result<postgres::Client, HecateError> {
         match self.0 {
             None => Err(HecateError::new(503, String::from("No Database Sandbox Connection"), None)),
             Some(ref db_sandbox) => {
@@ -83,13 +86,13 @@ impl DbSandbox {
 }
 
 #[derive(Clone)]
-pub struct DbReadWrite(pub r2d2::Pool<r2d2_postgres::PostgresConnectionManager<postgres::Client>>); //Read & Write DB Connection
+pub struct DbReadWrite(pub PgPool); //Read & Write DB Connection
 impl DbReadWrite {
-    pub fn new(database: r2d2::Pool<r2d2_postgres::PostgresConnectionManager<postgres::Client>>) -> Self {
+    pub fn new(database: PgPool) -> Self {
         DbReadWrite(database)
     }
 
-    pub fn get(&self) -> Result<r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager<postgres::Client>>, HecateError> {
+    pub fn get(&self) -> Result<postgres::Client, HecateError> {
         match self.0.get() {
             Ok(conn) => Ok(conn),
             Err(_) => Err(HecateError::new(503, String::from("Could not connect to database"), None))

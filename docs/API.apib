@@ -1,0 +1,868 @@
+# API
+
+# Group Server
+
+## Healthcheck [GET]
+
+Serves as a healthcheck for the server
+
++ Response 200 (text/plain)
+    + Body
+
+                Hello World!
+
+## API /api [GET]
+
+Return a JSON object containing information about the server
+
++ Response 200 (application/json)
+    + Body
+
+                {
+                    "constraints": {
+                        "request": {
+                            "max_size": 20971520
+                        }
+                    },
+                    "version": "0.85.0"
+                }
+
+# Group Admin UI
+
+## Admin UI [/admin]
+
+If an admin UI folder was specified when the server was started, serve it at `/admin`
+
+## /admin [GET]
+
++ Response 200
+
+## Group Metadata
+
+### All Meta [/api/meta]
+
+Return an array containing all the meta keys stored on the server
+
+Meta data provides a simple interface for storing server wide `key:value`
+pairs that can be used by Hecate clients. Most notably the default admin UI
+will use this API for setting things like; default layers, data license, server name, etc.
+
+#### /api/meta [GET]
+
++ Response 200 (application/json)
+    + Body
+
+                [
+                    "name",
+                    "layers"
+                [
+
+### Individual Meta [/api/meta/{key}]
+
++ Parameters
+    + key: name (String) required - A unique key for referencing a value
+
+#### /api/meta/{key} [POST]
+
+Create and store a new `key:value` pair, overwriting any existing value.
+
+The key should be the URL encoded `{key}` value, while the value can be any JSON
+value included in the request body.
+
++ Request JSON Value
+
+    + Headers
+
+            Content-Type: application/json
+
+    + Body
+
+            "Cool Hecate Server"
+
++ Response 200 (application/json)
+    + Body
+
+                {
+                    "key": "name",
+                    "value": "Cool Hecate Server"
+                }
+
+#### /api/meta/{key} [GET]
+
+Return the `key:value` pair for the requested `{key}` value.
+
++ Response 200 (application/json)
+    + Body
+
+                {
+                    "key": "name",
+                    "value": "Cool Hecate Server"
+                }
+
++ Response 404 (application/json)
+    + Body
+
+                {
+                    "code": 404,
+                    "reason", "Key not found",
+                    "status", "Not Found"
+                }
+
+#### /api/meta/{key} [DELETE]
+
+Permanently remove the `key:value` pair for the requested `{key}` value,
+returning the deleted `key:value` pair.
+
++ Response 200 (application/json)
+
+    The metadata object was deleted successfully.
+
+    + Body
+
+                {
+                    "key": "name",
+                    "value": "Cool Hecate Server"
+                }
+
++ Response 404 (application/json)
+
+    The requested `{key}` could not be found on the server
+
+    + Body
+
+                {
+                    "key": "name",
+                    "value": "Cool Hecate Server"
+                }
+
+## Group Authentication
+
+### Authentication [/api/auth]
+
+There are currently several different ways that authentication can take place
+
+- HTTP Basic authentication can be used on all endpoints
+- HTTP Bearer authentication can be used with a Read/Write API token
+- In URL Read token (READ only) `/token/<token>/api` can be used for editors that
+  aren't able to pass authentication via a header. Any readonly API can be accessed
+- Session cookie based authentication
+
+#### /api/auth [GET]
+
+Return a Custom Authentication JSON object, documenting what permissions
+are required for any given API endpoint on the server. Used by both the Admin UI
+and HecateJS to determine if auth is needed before making a given API request.
+
++ Response 200 (application/json)
+    + Body
+
+                {
+                    "See Custom Auth for example"
+                }
+
+### User Tokens [/api/user/tokens]
+
+Return a JSON array containing all of the tokens associated with the requesting user's account
+
+Note: The token itself will only ever be returned once, when it is created
+
+
+#### /api/user/tokens [GET]
+
++ Response 200 (application/json)
+
+### Create Token [/api/user/token]
+
+#### /api/user/token [POST]
+
+Given a JSON object, create a new API token
+
++ Request JSON Value
+
+    + Headers
+
+            Content-Type: application/json
+
+    + Body
+
+            {
+                "name": "Opional name of token",
+                "scope": "Optional scope of token - full or read (default: read)",
+                "hours": "Optional hours the token should remain valid (if undefined, token is persistent"
+            }
+
++ Response 200 (application/json)
+
+### Token [/api/user/token/{token_id}]
+
++ Parameters
+    + token_id: 1234 (String) - The token ID or token itself
+
+#### /api/user/token/{token_id} [GET]
+
+Retrieve metadata about a given token
+
+Note: The token itself will only ever be returned once, when it is created
+
++ Response 200 (application/json)
+
+#### /api/user/token/{token_id} [DELETE]
+
+Permanently delete a given API token
+
++ Response 200 (application/json)
+
+## Group Styles
+
+### Server Styles [/api/styles]
+
+#### /api/styles [GET]
+
+Return an array containing a reference to every public style
+
++ Response 200 (application/json)
+    + Body
+
+                [{
+                    "id": 1,
+                    "name": "Style Name",
+                    "public": true,
+                    "uid": 1,,
+                    "username": "ingalls"
+                }]
+
+### User Styles [/api/styles/{uid}]
+
++ Parameters
+    + uid: 1 (integer) - The user ID to lookup styles for
+
+#### /api/styles/{uid} [GET]
+
+Return an array containing styles owned by a particular user.
+
+By default any request will only return the public styles for a given user.
+
+If an authenticated user requests their own styles, it will return their public and private styles.
+
++ Response 200 (application/json)
+
+### Create Stypes [/api/style]
+
+#### /api/style [POST]
+
+Create a new private style attached to the authenticated user
+
++ Request JSON Value
+
+    + Headers
+
+            Content-Type: application/json
+
+    + Body
+
+            {
+                "name": "Name of Style",
+                "style": "Mapbox Style Object Here"
+            }
+
++ Response 200 (application/json)
+
+### Individual Styles [/api/style/{style_id}]
+
++ Parameters
+    + style_id: 1 (integer) - The style ID to lookup
+
+#### /api/style/{style_id} [GET]
+
+Get a particular style by id, public styles can be requested unauthenticated, private styles can only be obtained by the corresponding user making the request.
+
++ Response 200 (application/json)
+
+#### /api/style/{style_id} [DELETE]
+
+Delete a particular style by id. Users must be authorized and can only delete styles created by them.
+
++ Response 200 (application/json)
+
+#### /api/style/{style_id} [PATCH]
+
+Update a style - auth required - users can only update their own styles
+
++ Request JSON Value
+
+    + Headers
+
+            Content-Type: application/json
+
+    + Body
+
+            {
+                "name": "Name of Style",
+                "style": "Mapbox Style Object Here"
+            }
+
++ Response 200 (application/json)
+
+
+### Style Access [/api/style/{style_id}/{style_access}]
+
++ Parameters
+    + style_id: 1 (integer) - The style ID to lookup
+    + style_access: public (string) - The access type - currently "public" or "private"
+
+#### /api/style/{style_id}/{style_access} [POST]
+
+Note: Once a style is public other users may have cloned it. This will not
+affect cloned styles that were made when it was public.
+
++ Response 200 (application/json)
+
+## Group JSON Schema
+
+### JSON Schema [/api/schema]
+
+#### /api/schema [GET]
+
+Return a [JSON Schema](https://json-schema.org/) that all Feature properties must conform to.
+
++ Response 200 (application/json)
+    + Body
+
+                {
+                    "See JSON Schema link for examples"
+                }
+
+## Group Vector Tiles
+
+### Tile Cache [/api/tiles]
+
+#### /api/tiles [DELETE]
+
+Remove all tiles from the integrated tile cache (admin only)
+
++ Response 200
+
+### Tiles [/api/tiles/{z}/{x}/{y}]
+
++ Parameters
+    + z: 1 (integer) - the z coordinate of the tile
+    + x: 1 (integer) - the x coordinate of the tile
+    + y: 1 (integer) - the y coordinate of the tile
+
+#### /api/tiles/{z}/{x}/{y} [GET]
+
+Request a vector tile for a given set of coordinates. A [Mapbox Vector Tile](https://www.mapbox.com/vector-tiles/) is returned.
+
++ Response 200
+
+### Tile Meta [/api/tiles/{z}/{x}/{y}/meta]
+
++ Parameters
+    + z: 1 (integer) - the z coordinate of the tile
+    + x: 1 (integer) - the x coordinate of the tile
+    + y: 1 (integer) - the y coordinate of the tile
+
+#### /api/tiles/{z}/{x}/{y}/meta [GET]
+
+Return any stored metadata about a given tile.
+
++ Response 200
+
+### Tile Regen [/api/tiles/{z}/{x}/{y}/regen]
+
++ Parameters
+    + z: 1 (integer) - the z coordinate of the tile
+    + x: 1 (integer) - the x coordinate of the tile
+    + y: 1 (integer) - the y coordinate of the tile
+
+#### /api/tiles/{z}/{x}/{y}/regen [GET]
+
+Allows an authenticated user to request a new tile for the given tile coordinates,
+ensuring the tile isn't returned from the tile cache.
+
++ Response 200
+
+## Group Webhooks
+
+### Webhooks [/api/webhooks]
+
+#### /api/webhooks [GET]
+
+Return a JSON object containing a list of all webhooks maintained by the server
+
++ Response 200
+
+#### /api/webhooks [POST]
+
+Create a new webhook
+
++ Request JSON Value
+
+    + Headers
+
+            Content-Type: application/json
+
+    + Body
+
+            {
+                "name": "Webhook Name",
+                "url": "https://example.com",
+                "actions": ["meta", "user", "delta", "style"]
+            }
+
++ Response 200
+
+### Webhook [/api/webhooks/{id}]
+
++ Parameters
+    + id: 1 (integer) - The id of a given webhook
+
+#### /api/webhooks/{id} [GET]
+
+Return a JSON object containing information about a specific webhook
+
++ Response 200
+
+#### /api/webhooks/{id} [POST]
+
+Update a webhook ID with the given webhook data
+
++ Request JSON Value
+
+    + Headers
+
+            Content-Type: application/json
+
+    + Body
+
+            {
+                "name": "Webhook Name",
+                "url": "https://example.com",
+                "actions": ["meta", "user", "delta", "style"]
+            }
+
++ Response 200
+
+#### /api/webhooks/{id} [DELETE]
+
+Delete a given webhook
+
++ Response 200
+
+## Group Users
+
+### List Users [/api/users{?filter}{?limit}]
+
+#### /api/users [GET]
+
+Get a list of users (up to 100) or filter by a given user prefix.
+
++ Parameters
+    + filter (string, optional) - Desired search prefix for username
+    + limit (number, optional) - limit the number of returned results
+
++ Response 200
+
+### Create User [/api/user/create{?username}{?password}{?email}]
+
+#### /api/user/create [GET]
+
+Create a new user, provied the username & email are not already taken
+
++ Parameters
+    + username (string, required) - Desired username, must be unique
+    + password (string, required) - Desired password
+    + email (string, required) - Desired email, must be unique
+
++ Response 200
+
+### User Sessions [/api/user/session]
+
+#### /api/user/session [GET]
+
+Return a new session cookie and the `uid` given an Basic Authenticated request.
+
++ Response 200
+
+### Self Info [/api/user/info]
+
+#### /api/user/info [GET]
+
+Allows an authenticated user to obtain information about their own account
+
++ Response 200
+
+### User Info [/api/user/{id}]
+
++ Parameter
+    + id (number, required) - User ID to obtain user information for
+
+#### /api/user/{id} [GET]
+
+Obtain information about any user in the system by their numeric User ID.
+
+Note the information returned is the same information that a user is able to
+lookup about themself with the `GET /api/user/info` endpoint.
+
++ Response 200
+
+### User Access [/api/user/{id}/admin]
+
++ Parameter
+    + id (number, required) - User ID to obtain user information for
+
+#### /api/user/{id}/admin [PUT]
+
+Allows a user to be set as an admin
+
++ Response 200
+
+#### /api/user/{id}/admin [DELETE]
+
+Remove an existing admin
+
++ Response 200
+
+#### /api/user/{id} [GET]
+
+Obtain information about any user in the system by their numeric User ID.
+
+Note the information returned is the same information that a user is able to
+lookup about themself with the `GET /api/user/info` endpoint.
+
++ Response 200
+
+## Group Data
+
+### Cloning Server [/api/data/clone]
+
+#### /api/data/clone [GET]
+
+Return a Line-Delimited GeoJSON stream of all features currently stored on the server.
+
+Note: All streaming GeoJSON endpoints will send the Unitcode End Of Transmission, EOT
+(`0x04`) on stream completion. This can be used to ensure that a stream did not exit early.
+
++ Response 200
+
+### Querying Server [/api/data/query/{?query}{?limit}]
+
++ Parameters
+    + query (string, required) - SQL Query to run against Geometries
+    + limit (number, optional) - Limit the number of returned results
+
+### Downloading Multiple Features [/api/data/features{?bbox}{?point}]
+
++ Parameters
+    + bbox (number[], optional) - Bounding box in format `left,bottom,right,top` or `minX, minY, maxX, maxY`
+    + point (number[], optional) - Retrieve all features that intersect point in format `Lng,Lat`
+
+#### /api/data/features [GET]
+
+Return streaming Line-Delimited GeoJSON within the provided BBOX or Point
+
+Note: All streaming GeoJSON endpoints will send the Unitcode End Of Transmission, EOT
+(`0x04`) on stream completion. This can be used to ensure that a stream did not exit early.
+
++ Response 200
+
+### Features [/api/data/features]
+
+#### /api/data/features [POST]
+
+Create, Modify, and/or Delete many features via a GeoJSON `FeatureCollection`
+
+The Features in the FeatureCollection must follow format defined in [Feature Format](#feature-format).
+
+The FeatureCollection also must contain a top-level String `message` attribute describing the changes being made (The delta message)
+
+Note that a mix of `create`, `modify`, and `delete` operations are allowed
+within each `FeatureCollection`
+
++ Request JSON Value
+
+    + Headers
+
+            Content-Type: application/json
+
+    + Body
+
+            {
+                "type": "FeatureCollection",
+                "message": "A bunch of changes",
+                "features": [{
+                    "action": "create",
+                    "properties": {
+                        "shop": true
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [ [0,0], [0, 1], [1, 1], [1, 0], [0, 0] ]
+                    }
+                }]
+            }
+
++ Response 200 (application/json)
+
+### Downloading view Query [/api/data/query]
+
+#### /api/data/query [GET]
+
+Return a Line-Delimited GeoJSON stream of all features that match the given query.
+
+The query must be a valid SQL query against the `geo` table. Note that the `geo` is
+the only table that this endpoint can access. Only read operations are permitted.
+
+Note: All streaming GeoJSON endpoints will send the Unitcode End Of Transmission, EOT
+(`0x04`) on stream completion. This can be used to ensure that a stream did not exit early.
+
+IE:
+
+```SQL
+SELECT count(*) FROM geo
+```
+
+```SQL
+SELECT props FROM geo WHERE id = 1
+```
+
++ Response 200
+
+
+### Downloading Multiple Features' History [/api/data/features/history{?bbox}{?point}]
+
++ Parameters
+    + bbox (number[], optional) - Bounding box in format `left,bottom,right,top` or `minX, minY, maxX, maxY`
+    + point (number[], optional) - Retrieve all features that intersect point in format `Lng,Lat`
+
+#### /api/data/features/history [GET]
+
+Return streaming Line-Delimited GeoJSON of all versions of features that fall within the provided BBOX or Point.
+This includes the current version of the feature. Features in `delete` state will not be included
+as their geometries are not recorded.
+
+Note: All streaming GeoJSON endpoints will send the Unitcode End Of Transmission, EOT
+(`0x04`) on stream completion. This can be used to ensure that a stream did not exit early.
+
++ Response 200
+
+### Feature [/api/data/feature{?key}{?point}]
+
++ Parameters
+    + key (string, optional) - Retrieve a feature by it's `key` property
+    + point (number[], optional) - Query for a single feature at the given point
+
+#### /api/data/feature [POST]
+
+Create, Modify, or Delete an individual GeoJSON `Feature`
+
+The Feature must follow format defined in the Feature Format section of the README.
+
+The feature also must contain a top-level String `message` attribute describing the changes being made (The delta message)
+
++ Response 200
+
+#### /api/data/feature [GET]
+
+Return a single GeoJSON `Feature` given a query parameter
+
++ Response 200
+
+### Feature Lookup [/api/data/feature/{id}]
+
++ Parameters
+    + id (number, required) - ID of Feature to retrieve
+
+#### /api/data/feature/{id} [GET]
+
+Return a single GeoJSON `Feature` given its' ID.
+
++ Response 200
+
+### Feature History [/api/data/feature/{id}/history]
+
++ Parameters
+    + id (number, required) - ID of Feature to retrieve
+
+#### /api/data/feature/{id}/history [GET]
+
+Return an array containing the full feature history for the provided feature id.
+
++ Response 200
+
+### Data Stats [/api/data/stats]
+
+#### /api/data/stats [GET]
+
+Return a JSON object containing statistics and metadata about the geometries stored in the server
+
++ Response 200 (application/json)
+    + Body
+
+                {
+                    "bbox":  [0,0,1,1],
+                    "last_calc": null,
+                    "total":0
+                }
+
+### Data Stats Regen [/api/data/stats/regen]
+
+#### /api/data/stats/regen [GET]
+
+Perform an `ANAYLZE` call on the `geo` table to update the global stats.
+
++ Response 200 (application/json)
+    + Body
+
+                {
+                    "bbox":  [0,0,1,1],
+                    "last_calc": null,
+                    "total":0
+                }
+
+
+## Group Boundaries
+
+Boundaries allow downloading data via a set of pre-determined boundary files.
+
+### List Bounds [/api/data/bounds{?filter}{?limit}]
+
+Return an array of possible boundary files with which data can be extracted from the server with
+
++ Parameter
+    + filter (string, optional) - Desired search prefix for boundary
+    + limit (number, optional) - Limit the number of returned bounaries
+
+#### /api/data/bounds [GET]
+
+Return an array of possible boundary files with which data can be extracted from the server with
+
++ Response 200
+
+### Bound [/api/data/bounds/{bounds}]
+
++ Parameter
+    + bounds (string, required) - One of the boundary files as specified via the `/api/data/bounds`
+
+#### /api/data/bounds/{bounds} [GET]
+
+Return line delimited GeoJSON `Feature` of all the geometries within the specified boundary file.
+
+Note: All streaming GeoJSON endpoints will send the Unitcode End Of Transmission, EOT
+(`0x04`) on stream completion. This can be used to ensure that a stream did not exit early.
+
++ Response 200
+
+#### /api/data/bounds/{bounds} [POST]
+
+Create or replace a boundary with the given name.
+
+Note: Boundaries must be a `Polygon` or `MultiPolygon` Feature GeoJSON.
+
++ Request JSON Value
+
+    + Headers
+
+            Content-Type: application/json
+
+    + Body
+
+            {
+                "type": "Feature",
+                "properties": { },
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [ [0,0], [0, 1], [1, 1], [1, 0], [0, 0] ]
+                }
+            }
+
++ Response 200 (application/json)
+
+#### /api/data/bounds/{bounds} [DELETE]
+
+Delete a bounds file with the given name.
+
++ Response 200
+
+### Bound Stats [/api/data/bounds/{bounds}/stats]
+
++ Parameter
+    + bounds (string, required) - One of the boundary files as specified via the `/api/data/bounds`
+
+#### /api/data/bounds/{bounds}/stats [GET]
+
+Return statistics about geometries that intersect a given bounds
+
++ Response 200
+
+### Bound Meta [/api/data/bounds/{bounds}/meta]
+
++ Parameter
+    + bounds (string, required) - One of the boundary files as specified via the `/api/data/bounds`
+
+#### /api/data/bounds/{bounds}/meta [GET]
+
+Return GeoJSON feature representing the bound
+
++ Response 200 (application/json)
+
+## Group Deltas
+
+Deltas are time based collections of changes applied to the server
+
+### Deltas [/api/deltas{?offset}{?limit}{?start}{?end}]
+
+Get a list of the latest deltas
+
+*Limit Options*
+
+Return the last `n` deltas starting at the specified `offset`.
+
+Where `n` defaults to 20 and can be up to 100 by utilizing the `limit` parameter
+
+*Date Options*
+
+Return deltas between a given `start` and `end` parameter.
+
+The `start` parameter should be the most recent TIMESTAMP, while the `end` parameter
+should be the furthest back in time.
+
+IE: `start` > `end`.
+
+```
+   |---------|------|
+Current    start   end
+ Time
+```
+
+- If both `start` and `end` are specified, return all deltas by default
+- If `start` or `end` is specified, return last 20 deltas or the number specified by `limit`
+
++ Parameters
+    + offset (number, optional) - Returns deltas before the given offset
+    + limit (number, optional) - Increase or decrease the max number of returned deltas (Max 100)
+    + start (date, optional) - Timestamp with which to filter between
+    + end (date, optional) - Timestamp with which to filter deltas between
+
+#### /api/deltas [GET]
+
+Returns an array of the last `limit` defined number of deltas (default: 20). with their corresponding metadata. Does not include geometric
+data on the delta. Request a specific delta to get geometric data.
+
+The deltas endpoint has 2 modes. The first is a fixed list of the last `n` deltas. The second is listing deltas by time stamp. the query parameters
+for these two modes are mutually exclusive.
+
++ Response 200 (application/json)
+
+### Individual Delta [/api/deltas/{id}]
+
++ Parameters
+    + id (number, required) - ID of delta to retrieve
+
+#### /api/deltas/{id} [GET]
+
+Returns all data for a given delta as a JSON Object, including geometric data.
+
++ Response 200 (application/json)
+
+###

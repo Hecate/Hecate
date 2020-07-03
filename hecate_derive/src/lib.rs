@@ -42,19 +42,13 @@ fn valid_fn(input: &DeriveInput) -> TokenStream2 {
 
                     let mut vld: Option<String> = None;
                     for attr in &fnamed.attrs {
-                        match attr.parse_meta() {
-                            Ok(syn::Meta::NameValue(attr)) => {
-                                if attr.path.is_ident("valid") {
-                                    match attr.lit {
-                                        syn::Lit::Str(lit) => {
-                                            vld = Some(lit.value());
-                                        },
-                                        _ => ()
-                                    }
+                        if let Ok(syn::Meta::NameValue(attr)) = attr.parse_meta() {
+                            if attr.path.is_ident("valid") {
+                                if let syn::Lit::Str(lit) = attr.lit {
+                                    vld = Some(lit.value());
                                 }
-                            },
-                            _ => ()
-                        };
+                            }
+                        }
                     }
 
                     let vld = match vld {
@@ -104,19 +98,13 @@ fn default_fn(input: &DeriveInput) -> TokenStream2 {
 
                     let mut def: Option<String> = None;
                     for attr in &fnamed.attrs {
-                        match attr.parse_meta() {
-                            Ok(syn::Meta::NameValue(attr)) => {
-                                if attr.path.is_ident("default") {
-                                    match attr.lit {
-                                        syn::Lit::Str(lit) => {
-                                            def = Some(lit.value());
-                                        },
-                                        _ => ()
-                                    }
+                        if let Ok(syn::Meta::NameValue(attr)) = attr.parse_meta() {
+                            if attr.path.is_ident("default") {
+                                if let syn::Lit::Str(lit) = attr.lit {
+                                    def = Some(lit.value());
                                 }
-                            },
-                            _ => ()
-                        };
+                            }
+                        }
                     }
 
                     // a default = "x" value is required
