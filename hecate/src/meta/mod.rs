@@ -15,7 +15,7 @@ impl Meta {
         }
     }
 
-    pub fn get(conn: &mut postgres::Client, key: impl ToString) -> Result<Self, HecateError> {
+    pub async fn get(conn: &mut tokio_postgres::Client, key: impl ToString) -> Result<Self, HecateError> {
         let key = key.to_string();
 
         match conn.query("
@@ -25,7 +25,7 @@ impl Meta {
                 meta
             WHERE
                 key = $1;
-        ", &[&key]) {
+        ", &[&key]).await {
             Ok(rows) => {
                 if rows.is_empty() {
                     Err(HecateError::new(404, String::from("Key not found"), None))
@@ -37,33 +37,33 @@ impl Meta {
         }
     }
 
-    pub fn set(&self, conn: &mut postgres::Client) -> Result<bool, HecateError> {
+    pub async fn set(&self, conn: &mut tokio_postgres::Client) -> Result<bool, HecateError> {
         match conn.query("
             INSERT INTO meta (key, value) VALUES ($1, $2)
                 ON CONFLICT (key) DO
                     UPDATE
                         SET value = $2
                         WHERE meta.key = $1
-        ", &[ &self.key, &self.value ]) {
+        ", &[ &self.key, &self.value ]).await {
             Ok(_) => Ok(true),
             Err(err) => Err(HecateError::from_db(err))
         }
     }
 
-    pub fn delete(conn: &mut postgres::Client, key: &str) -> Result<bool, HecateError> {
+    pub async fn delete(conn: &mut tokio_postgres::Client, key: &str) -> Result<bool, HecateError> {
         match conn.query("
             DELETE FROM meta WHERE key = $1
-        ", &[ &key ]) {
+        ", &[ &key ]).await {
             Ok(_) => Ok(true),
             Err(err) => Err(HecateError::from_db(err))
         }
     }
 }
 
-pub fn list(conn: &mut postgres::Client) -> Result<Vec<String>, HecateError> {
+pub async fn list(conn: &mut tokio_postgres::Client) -> Result<Vec<String>, HecateError> {
     match conn.query("
         SELECT key FROM meta ORDER BY key
-    ", &[]) {
+    ", &[]).await {
         Ok(rows) => {
             let mut names = Vec::<String>::new();
 

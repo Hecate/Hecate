@@ -1,7 +1,7 @@
 use crate::err::HecateError;
 use crate::stream::PGStream;
 
-pub fn set(conn: &mut postgres::Client, name: &str, feat: &serde_json::Value) -> Result<bool, HecateError> {
+pub async fn set(conn: &mut tokio_postgres::Client, name: &str, feat: &serde_json::Value) -> Result<bool, HecateError> {
     match conn.execute("
         INSERT INTO bounds (name, geom, props)
             VALUES (
@@ -13,22 +13,22 @@ pub fn set(conn: &mut postgres::Client, name: &str, feat: &serde_json::Value) ->
                 UPDATE
                     SET geom = ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON($2::JSON->>'geometry'), 4326))
                     WHERE bounds.name = $1;
-    ", &[ &name, &feat ]) {
+    ", &[ &name, &feat ]).await {
         Ok(_) => Ok(true),
         Err(err) => Err(HecateError::from_db(err))
     }
 }
 
-pub fn delete(conn: &mut postgres::Client, name: &str) -> Result<bool, HecateError> {
+pub async fn delete(conn: &mut tokio_postgres::Client, name: &str) -> Result<bool, HecateError> {
     match conn.execute("
         DELETE FROM bounds WHERE name = $1
-    ", &[ &name ]) {
+    ", &[ &name ]).await {
         Ok(_) => Ok(true),
         Err(err) => Err(HecateError::from_db(err))
     }
 }
 
-pub fn filter(conn: &mut postgres::Client, prefix: &str, limit: Option<i16>) -> Result<Vec<String>, HecateError> {
+pub async fn filter(conn: &mut tokio_postgres::Client, prefix: &str, limit: Option<i16>) -> Result<Vec<String>, HecateError> {
     let limit: i16 = match limit {
         None => 100,
         Some(limit) => if limit > 100 { 100 } else { limit }
@@ -40,7 +40,7 @@ pub fn filter(conn: &mut postgres::Client, prefix: &str, limit: Option<i16>) -> 
             WHERE name iLIKE $1||'%'
             ORDER BY name
             LIMIT $2::SmallInt
-    ", &[ &prefix, &limit ]) {
+    ", &[ &prefix, &limit ]).await {
         Ok(rows) => {
             let mut names = Vec::<String>::new();
 
@@ -54,13 +54,13 @@ pub fn filter(conn: &mut postgres::Client, prefix: &str, limit: Option<i16>) -> 
     }
 }
 
-pub fn list(conn: &mut postgres::Client, limit: Option<i16>) -> Result<Vec<String>, HecateError> {
+pub async fn list(conn: &mut tokio_postgres::Client, limit: Option<i16>) -> Result<Vec<String>, HecateError> {
     match conn.query("
         SELECT name
         FROM bounds
         ORDER BY name
         LIMIT $1::SmallInt
-    ", &[ &limit ]) {
+    ", &[ &limit ]).await {
         Ok(rows) => {
             let mut names = Vec::<String>::new();
 
@@ -74,7 +74,7 @@ pub fn list(conn: &mut postgres::Client, limit: Option<i16>) -> Result<Vec<Strin
     }
 }
 
-pub fn get(conn: postgres::Client, bounds: String) -> Result<PGStream, HecateError> {
+pub fn get(conn: tokio_postgres::Client, bounds: String) -> Result<PGStream, HecateError> {
     Ok(PGStream::new(conn, String::from("next_bounds"), String::from(r#"
         DECLARE next_bounds CURSOR FOR
             SELECT
@@ -103,7 +103,7 @@ pub fn get(conn: postgres::Client, bounds: String) -> Result<PGStream, HecateErr
     "#), &[&bounds])?)
 }
 
-pub fn meta(conn: &mut postgres::Client, name: String) -> Result<serde_json::Value, HecateError> {
+pub async fn meta(conn: &mut tokio_postgres::Client, name: String) -> Result<serde_json::Value, HecateError> {
     match conn.query("
         SELECT
             JSON_Build_Object(
@@ -116,7 +116,7 @@ pub fn meta(conn: &mut postgres::Client, name: String) -> Result<serde_json::Val
                 bounds
             WHERE
                 name = $1
-    ", &[ &name ]) {
+    ", &[ &name ]).await {
         Ok(rows) => {
             if rows.len() != 1 {
                 return Err(HecateError::new(404, String::from("bound not found"), None));
@@ -130,7 +130,7 @@ pub fn meta(conn: &mut postgres::Client, name: String) -> Result<serde_json::Val
     }
 }
 
-pub fn stats_json(conn: &mut postgres::Client, bounds: String) -> Result<serde_json::Value, HecateError> {
+pub async fn stats_json(conn: &mut tokio_postgres::Client, bounds: String) -> Result<serde_json::Value, HecateError> {
     match conn.query("
         SELECT
             row_to_json(t)
@@ -159,7 +159,7 @@ pub fn stats_json(conn: &mut postgres::Client, bounds: String) -> Result<serde_j
                 ST_Intersects(geo.geom, b.subgeom)
                 AND bounds.name = $1
         ) t
-    ", &[ &bounds ]) {
+    ", &[ &bounds ]).await {
         Ok(rows) => Ok(rows.get(0).unwrap().get(0)),
         Err(err) => Err(HecateError::from_db(err))
     }

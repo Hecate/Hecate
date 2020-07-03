@@ -1,4 +1,3 @@
-use postgres;
 use reqwest;
 use rand::{thread_rng, Rng, distributions::Alphanumeric};
 use sha2::Sha256;
@@ -53,7 +52,7 @@ pub enum Action {
     Style
 }
 
-pub fn list(conn: &mut postgres::Client, action: Action) -> Result<Vec<WebHook>, HecateError> {
+pub async fn list(conn: &mut tokio_postgres::Client, action: Action) -> Result<Vec<WebHook>, HecateError> {
     let action = match action {
         Action::All => "",
         Action::User => "WHERE actions @>ARRAY['user']",
@@ -72,7 +71,7 @@ pub fn list(conn: &mut postgres::Client, action: Action) -> Result<Vec<WebHook>,
         FROM
             webhooks
         {action}
-    ", action = &action).as_str(), &[]) {
+    ", action = &action).as_str(), &[]).await {
         Ok(results) => {
             let mut hooks: Vec<WebHook> = Vec::with_capacity(results.len());
 
@@ -86,7 +85,7 @@ pub fn list(conn: &mut postgres::Client, action: Action) -> Result<Vec<WebHook>,
     }
 }
 
-pub fn get(conn: &mut postgres::Client, id: i64) -> Result<WebHook, HecateError> {
+pub async fn get(conn: &mut tokio_postgres::Client, id: i64) -> Result<WebHook, HecateError> {
     match conn.query("
         SELECT
             id,
@@ -98,7 +97,7 @@ pub fn get(conn: &mut postgres::Client, id: i64) -> Result<WebHook, HecateError>
             webhooks
         WHERE
             id = $1
-    ", &[&id]) {
+    ", &[&id]).await {
         Ok(results) => {
             if results.is_empty() {
                 return Err(HecateError::new(404, String::from("Webhook Not Found"), None));
@@ -111,17 +110,17 @@ pub fn get(conn: &mut postgres::Client, id: i64) -> Result<WebHook, HecateError>
     }
 }
 
-pub fn delete(conn: &mut postgres::Client, id: i64) -> Result<bool, HecateError> {
+pub async fn delete(conn: &mut tokio_postgres::Client, id: i64) -> Result<bool, HecateError> {
     match conn.execute("
         DELETE FROM webhooks
         WHERE id = $1
-    ", &[&id]) {
+    ", &[&id]).await {
         Ok(_) => Ok(true),
         Err(err) => Err(HecateError::from_db(err))
     }
 }
 
-pub fn create(conn: &mut postgres::Client, mut webhook: WebHook) -> Result<WebHook, HecateError> {
+pub async fn create(conn: &mut tokio_postgres::Client, mut webhook: WebHook) -> Result<WebHook, HecateError> {
     if !is_valid_action(&webhook.actions) {
         return Err(HecateError::new(400, String::from("Invalid Action"), None));
     }
@@ -151,7 +150,7 @@ pub fn create(conn: &mut postgres::Client, mut webhook: WebHook) -> Result<WebHo
                 $4
             )
             Returning id
-    ", &[&webhook.name, &webhook.actions, &webhook.url, &webhook.secret]) {
+    ", &[&webhook.name, &webhook.actions, &webhook.url, &webhook.secret]).await {
         Ok(results) => {
             let id = results.get(0).unwrap().get(0);
 
@@ -163,7 +162,7 @@ pub fn create(conn: &mut postgres::Client, mut webhook: WebHook) -> Result<WebHo
     }
 }
 
-pub fn update(conn: &mut postgres::Client, webhook: WebHook) -> Result<WebHook, HecateError> {
+pub async fn update(conn: &mut tokio_postgres::Client, webhook: WebHook) -> Result<WebHook, HecateError> {
     if !is_valid_action(&webhook.actions) {
         return Err(HecateError::new(400, String::from("Invalid Action"), None));
     }
@@ -179,7 +178,7 @@ pub fn update(conn: &mut postgres::Client, webhook: WebHook) -> Result<WebHook, 
                 actions = $2,
                 url = $3
             WHERE id = $4
-    ", &[&webhook.name, &webhook.actions, &webhook.url, &webhook.id]) {
+    ", &[&webhook.name, &webhook.actions, &webhook.url, &webhook.id]).await {
         Ok(_) => Ok(webhook),
         Err(err) => Err(HecateError::from_db(err))
     }
@@ -200,7 +199,7 @@ pub fn is_valid_action(actions: &[String]) -> bool {
     true
 }
 
-pub fn send(conn: &mut postgres::Client, task: &worker::TaskType) -> Result<(), HecateError> {
+pub fn send(conn: &mut tokio_postgres::Client, task: &worker::TaskType) -> Result<(), HecateError> {
     let action = match task {
         worker::TaskType::Delta(_) => Action::Delta,
         worker::TaskType::User(_) => Action::User,

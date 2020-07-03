@@ -57,7 +57,7 @@ impl Token {
         }
     }
 
-    pub fn create(conn: &mut postgres::Client, name: impl ToString, uid: i64, hours: Option<i64>, scope: Scope) -> Result<Self, HecateError> {
+    pub async fn create(conn: &mut tokio_postgres::Client, name: impl ToString, uid: i64, hours: Option<i64>, scope: Scope) -> Result<Self, HecateError> {
         let res = match hours {
             None => match conn.query("
                 INSERT INTO users_tokens (id, name, uid, token, scope)
@@ -74,7 +74,7 @@ impl Token {
                         uid,
                         token,
                         expiry::TEXT
-            ", &[ &name.to_string(), &uid, &scope.to_string() ]) {
+            ", &[ &name.to_string(), &uid, &scope.to_string() ]).await {
                 Err(err) => { return Err(HecateError::from_db(err)); },
                 Ok(res) => res
             },
@@ -97,7 +97,7 @@ impl Token {
                             uid,
                             token,
                             expiry::TEXT
-                ", &[ &name.to_string(), &uid, &hours, &scope.to_string() ]) {
+                ", &[ &name.to_string(), &uid, &hours, &scope.to_string() ]).await {
                     Err(err) => { return Err(HecateError::from_db(err)); },
                     Ok(res) => res
                 }
@@ -113,7 +113,7 @@ impl Token {
         Ok(Token::new(Some(id), name, uid, Some(token), expiry, scope))
     }
 
-    pub fn get(conn: &mut postgres::Client, uid: i64, token: &str) -> Result<Self, HecateError> {
+    pub async fn get(conn: &mut tokio_postgres::Client, uid: i64, token: &str) -> Result<Self, HecateError> {
         match conn.query("
             SELECT
                 id::TEXT AS id,
@@ -129,7 +129,7 @@ impl Token {
                     token = $2
                     OR id::TEXT = $2
                 )
-        ", &[ &uid, &token ]) {
+        ", &[ &uid, &token ]).await {
             Ok(res) => {
                 let id: String = res.get(0).unwrap().get(0);
                 let name: String = res.get(0).unwrap().get(1);
@@ -150,14 +150,14 @@ impl Token {
     }
 }
 
-pub fn destroy(conn: &mut postgres::Client, uid: i64, token: &str) -> Result<bool, HecateError> {
+pub async fn destroy(conn: &mut tokio_postgres::Client, uid: i64, token: &str) -> Result<bool, HecateError> {
     if token.contains('-') {
         match conn.query("
             DELETE FROM users_tokens
                 WHERE
                     id::TEXT = $1
                     AND uid = $2;
-        ", &[ &token, &uid ]) {
+        ", &[ &token, &uid ]).await {
             Ok(_) => Ok(true),
             Err(err) => Err(HecateError::new(404, String::from("Token Not Found"), Some(err.to_string())))
         }
@@ -167,14 +167,14 @@ pub fn destroy(conn: &mut postgres::Client, uid: i64, token: &str) -> Result<boo
                 WHERE
                     token = $1
                     AND uid = $2;
-        ", &[ &token, &uid ]) {
+        ", &[ &token, &uid ]).await {
             Ok(_) => Ok(true),
             Err(err) => Err(HecateError::new(404, String::from("Token Not Found"), Some(err.to_string())))
         }
     }
 }
 
-pub fn list(conn: &mut postgres::Client, uid: i64) -> Result<Vec<Token>, HecateError> {
+pub async fn list(conn: &mut tokio_postgres::Client, uid: i64) -> Result<Vec<Token>, HecateError> {
     match conn.query("
         SELECT
             id::TEXT,
@@ -186,7 +186,7 @@ pub fn list(conn: &mut postgres::Client, uid: i64) -> Result<Vec<Token>, HecateE
             users_tokens
         WHERE
             uid = $1
-    ", &[ &uid ]) {
+    ", &[ &uid ]).await {
         Ok(rows) => {
             let mut tokens = Vec::with_capacity(rows.len());
 

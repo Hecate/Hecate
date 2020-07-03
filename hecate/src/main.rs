@@ -124,7 +124,7 @@ fn main() {
 }
 
 fn database_check(conn_str: &String, is_read: bool) {
-    match postgres::Client::connect(format!("postgres://{}", conn_str), postgres::TlsMode::None) {
+    match tokio_postgres::Client::connect(format!("postgres://{}", conn_str), postgres::TlsMode::None) {
         Ok(conn) => {
             let conn_type = match is_read {
                 true => String::from("READ"),

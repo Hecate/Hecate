@@ -53,7 +53,7 @@ impl Worker {
 /// Main logic for web worker
 ///
 fn worker(rx: crossbeam::Receiver<Task>, database: String) {
-    let mut conn = postgres::Client::connect(format!("postgres://{}", database).as_str(), postgres::NoTls).unwrap();
+    let mut conn = tokio_postgres::Client::connect(format!("postgres://{}", database).as_str(), postgres::NoTls).unwrap();
 
     loop {
         let task = match rx.recv() {

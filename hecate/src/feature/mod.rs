@@ -210,7 +210,7 @@ pub fn get_key(feat: &geojson::Feature) -> Result<Option<String>, HecateError> {
     }
 }
 
-pub fn action(trans: &mut postgres::Transaction, schema_json: &Option<serde_json::value::Value>, feat: &geojson::Feature, delta: &Option<i64>) -> Result<Response, HecateError> {
+pub fn action(trans: &mut tokio_postgres::Transaction<'_>, schema_json: &Option<serde_json::value::Value>, feat: &geojson::Feature, delta: &Option<i64>) -> Result<Response, HecateError> {
     let action = get_action(&feat)?;
 
     let mut scope = valico::json_schema::Scope::new();
@@ -234,7 +234,7 @@ pub fn action(trans: &mut postgres::Transaction, schema_json: &Option<serde_json
     Ok(res)
 }
 
-pub fn create(trans: &mut postgres::Transaction, schema: &Option<valico::json_schema::schema::ScopedSchema>, feat: &geojson::Feature, delta: &Option<i64>) -> Result<Response, HecateError> {
+pub async fn create(trans: &mut tokio_postgres::Transaction<'_>, schema: &Option<valico::json_schema::schema::ScopedSchema<'_>>, feat: &geojson::Feature, delta: &Option<i64>) -> Result<Response, HecateError> {
     if get_version(&feat).is_ok() {
         return Err(import_error(&feat, String::from("Cannot have Version"), None));
     }
@@ -282,7 +282,7 @@ pub fn create(trans: &mut postgres::Transaction, schema: &Option<valico::json_sc
                         props = $2::TEXT::JSON,
                         deltas = array_append(geo.deltas, COALESCE($3, currval('deltas_id_seq')::BIGINT))
                 RETURNING id, version;
-        ", &[&geom_str, &props_str, &delta, &key]) {
+        ", &[&geom_str, &props_str, &delta, &key]).await {
             Ok(res) => {
                 let new: i64 = res.get(0).unwrap().get(0);
                 let version: i64 = res.get(0).unwrap().get(1);
@@ -298,7 +298,7 @@ pub fn create(trans: &mut postgres::Transaction, schema: &Option<valico::json_sc
                             $5,
                             $6
                         )
-                ", &[&geom_str, &props_str, &delta, &key, &new, &version]) {
+                ", &[&geom_str, &props_str, &delta, &key, &new, &version]).await {
                     Err(err) => Err(import_error(&feat, err.to_string(), None)),
                     Ok(_) => {
                         Ok(Response {
@@ -321,7 +321,7 @@ pub fn create(trans: &mut postgres::Transaction, schema: &Option<valico::json_sc
                     array[COALESCE($3, currval('deltas_id_seq')::BIGINT)],
                     $4
                 ) RETURNING id, version;
-        ", &[&geom_str, &props_str, &delta, &key]) {
+        ", &[&geom_str, &props_str, &delta, &key]).await {
             Ok(res) => {
                 let new: i64 = res.get(0).unwrap().get(0);
                 let version: i64 = res.get(0).unwrap().get(1);
@@ -337,7 +337,7 @@ pub fn create(trans: &mut postgres::Transaction, schema: &Option<valico::json_sc
                             $5,
                             $6
                         ) RETURNING version;
-                ", &[&geom_str, &props_str, &delta, &key, &new, &version]) {
+                ", &[&geom_str, &props_str, &delta, &key, &new, &version]).await {
                     Err(err) => Err(import_error(&feat, err.to_string(), None)),
                     Ok(_) => {
                         Ok(Response {
@@ -360,7 +360,7 @@ pub fn create(trans: &mut postgres::Transaction, schema: &Option<valico::json_sc
     }
 }
 
-pub fn modify(trans: &mut postgres::Transaction, schema: &Option<valico::json_schema::schema::ScopedSchema>, feat: &geojson::Feature, delta: &Option<i64>) -> Result<Response, HecateError> {
+pub async fn modify(trans: &mut tokio_postgres::Transaction<'_>, schema: &Option<valico::json_schema::schema::ScopedSchema<'_>>, feat: &geojson::Feature, delta: &Option<i64>) -> Result<Response, HecateError> {
     let props = match feat.properties {
         None => { return Err(import_error(&feat, String::from("Properties Required"), None)); },
         Some(ref props) => props
@@ -386,7 +386,7 @@ pub fn modify(trans: &mut postgres::Transaction, schema: &Option<valico::json_sc
 
     match trans.query("
             SELECT modify_geo($1, $2, COALESCE($5, currval('deltas_id_seq')::BIGINT), $3, $4, $6);
-        ", &[&geom_str, &props_str, &id, &version, &delta, &key]) {
+        ", &[&geom_str, &props_str, &id, &version, &delta, &key]).await {
         Ok(_) => {
             match trans.query("
                 INSERT INTO geo_history (geom, props, id, version, delta, key, action)
@@ -399,7 +399,7 @@ pub fn modify(trans: &mut postgres::Transaction, schema: &Option<valico::json_sc
                         $6,
                         'modify'
                     ) RETURNING version;
-            ", &[&geom_str, &props_str, &id, &version, &delta, &key]) {
+            ", &[&geom_str, &props_str, &id, &version, &delta, &key]).await {
                 Ok(res) => {
                     let new_version: i64 = res.get(0).unwrap().get(0);
                     Ok(Response {
@@ -431,12 +431,12 @@ pub fn modify(trans: &mut postgres::Transaction, schema: &Option<valico::json_sc
     }
 }
 
-pub fn delete(trans: &mut postgres::Transaction, feat: &geojson::Feature, delta: &Option<i64>) -> Result<Response, HecateError> {
+pub async fn delete(trans: &mut tokio_postgres::Transaction<'_>, feat: &geojson::Feature, delta: &Option<i64>) -> Result<Response, HecateError> {
     let id = get_id(&feat)?;
     let version = get_version(&feat)?;
     let key = get_key(&feat)?;
 
-    match trans.query("SELECT delete_geo($1, $2);", &[&id, &version]) {
+    match trans.query("SELECT delete_geo($1, $2);", &[&id, &version]).await {
         Ok(_) => {
             match trans.query("
                 INSERT INTO geo_history (id, version, delta, key, action)
@@ -447,7 +447,7 @@ pub fn delete(trans: &mut postgres::Transaction, feat: &geojson::Feature, delta:
                         $4,
                         'delete'
                     );
-            ", &[&id, &version, &delta, &key]) {
+            ", &[&id, &version, &delta, &key]).await {
                 Ok(_) => {
                     Ok(Response {
                         old: Some(id),
@@ -476,7 +476,7 @@ pub fn delete(trans: &mut postgres::Transaction, feat: &geojson::Feature, delta:
     }
 }
 
-pub fn query_by_key(conn: &mut postgres::Client, key: &str) -> Result<serde_json::value::Value, HecateError> {
+pub async fn query_by_key(conn: &mut tokio_postgres::Client, key: &str) -> Result<serde_json::value::Value, HecateError> {
     match conn.query("
         SELECT
             row_to_json(f)::JSON AS feature
@@ -491,7 +491,7 @@ pub fn query_by_key(conn: &mut postgres::Client, key: &str) -> Result<serde_json
             FROM geo
             WHERE key = $1
         ) f;
-    ", &[&key]) {
+    ", &[&key]).await {
         Ok(res) => {
             if res.len() != 1 { return Err(HecateError::new(404, String::from("Feature not found"), None)); }
 
@@ -502,7 +502,7 @@ pub fn query_by_key(conn: &mut postgres::Client, key: &str) -> Result<serde_json
     }
 }
 
-pub fn query_by_point(conn: &mut postgres::Client, point: &str) -> Result<Vec<serde_json::value::Value>, HecateError> {
+pub async fn query_by_point(conn: &mut tokio_postgres::Client, point: &str) -> Result<Vec<serde_json::value::Value>, HecateError> {
     let (lng, lat) = validate::point(point)?;
 
     match conn.query("
@@ -522,7 +522,7 @@ pub fn query_by_point(conn: &mut postgres::Client, point: &str) -> Result<Vec<se
             ORDER BY
                 ST_Distance(ST_SetSRID(ST_MakePoint($1, $2), 4326), geo.geom) DESC
         ) f
-    ", &[&lng, &lat]) {
+    ", &[&lng, &lat]).await {
         Ok(results) => {
             if results.is_empty() {
                 return Err(HecateError::new(404, String::from("Feature not found"), None));
@@ -541,7 +541,7 @@ pub fn query_by_point(conn: &mut postgres::Client, point: &str) -> Result<Vec<se
     }
 }
 
-pub fn get(conn: &mut postgres::Client, id: i64) -> Result<geojson::Feature, HecateError> {
+pub async fn get(conn: &mut tokio_postgres::Client, id: i64) -> Result<geojson::Feature, HecateError> {
     match conn.query("
         SELECT
             row_to_json(f)::TEXT AS feature
@@ -556,7 +556,7 @@ pub fn get(conn: &mut postgres::Client, id: i64) -> Result<geojson::Feature, Hec
             FROM geo
             WHERE id = $1
         ) f;
-    ", &[&id]) {
+    ", &[&id]).await {
         Ok(res) => {
             if res.len() != 1 { return Err(HecateError::new(404, String::from("Not Found"), None)); }
 
@@ -576,7 +576,7 @@ pub fn get(conn: &mut postgres::Client, id: i64) -> Result<geojson::Feature, Hec
     }
 }
 
-pub fn restore(trans: &mut postgres::Transaction, schema: &Option<valico::json_schema::schema::ScopedSchema>, feat: &geojson::Feature, delta: &Option<i64>) -> Result<Response, HecateError> {
+pub async fn restore(trans: &mut tokio_postgres::Transaction<'_>, schema: &Option<valico::json_schema::schema::ScopedSchema<'_>>, feat: &geojson::Feature, delta: &Option<i64>) -> Result<Response, HecateError> {
     let props = match feat.properties {
         None => { return Err(import_error(&feat, String::from("Properties Required"), None)); },
         Some(ref props) => props
@@ -616,7 +616,7 @@ pub fn restore(trans: &mut postgres::Transaction, schema: &Option<valico::json_s
         WHERE
             id=$1
     ) t
-    ", &[&id]) {
+    ", &[&id]).await {
         Ok(res) => {
             // Agg function returns row of NULLs if inner query doesn't return results
             let affected: Option<Vec<i64>> = res.get(0).unwrap().get(0);
@@ -647,7 +647,7 @@ pub fn restore(trans: &mut postgres::Transaction, schema: &Option<valico::json_s
                         array_append($5::BIGINT[], COALESCE($6, currval('deltas_id_seq')::BIGINT)),
                         $7
                     ) RETURNING version;
-            ", &[&id, &prev_version, &geom_str, &props_str, &affected, &delta, &key]) {
+            ", &[&id, &prev_version, &geom_str, &props_str, &affected, &delta, &key]).await {
                 Ok(res) => {
                     let new_version: i64 = res.get(0).unwrap().get(0);
                     match trans.query("
@@ -661,7 +661,7 @@ pub fn restore(trans: &mut postgres::Transaction, schema: &Option<valico::json_s
                                 $6,
                                 'restore'
                             );
-                    ", &[&geom_str, &props_str, &id, &new_version, &delta, &key]) {
+                    ", &[&geom_str, &props_str, &id, &new_version, &delta, &key]).await {
                         Ok(_) => {
                             Ok(Response {
                                 old: Some(id),
@@ -690,7 +690,7 @@ pub fn restore(trans: &mut postgres::Transaction, schema: &Option<valico::json_s
     }
 }
 
-pub fn get_point_stream(conn: postgres::Client, point: &str) -> Result<PGStream, HecateError> {
+pub fn get_point_stream(conn: tokio_postgres::Client, point: &str) -> Result<PGStream, HecateError> {
     let (lng, lat) = validate::point(point)?;
 
     Ok(PGStream::new(conn, String::from("next_features"), String::from(r#"
@@ -714,7 +714,7 @@ pub fn get_point_stream(conn: postgres::Client, point: &str) -> Result<PGStream,
     "#), &[&lng, &lat])?)
 }
 
-pub fn get_bbox_stream(conn: postgres::Client, bbox: &[f64]) -> Result<PGStream, HecateError> {
+pub fn get_bbox_stream(conn: tokio_postgres::Client, bbox: &[f64]) -> Result<PGStream, HecateError> {
     validate::bbox(bbox)?;
 
     Ok(PGStream::new(conn, String::from("next_features"), String::from(r#"
@@ -737,7 +737,7 @@ pub fn get_bbox_stream(conn: postgres::Client, bbox: &[f64]) -> Result<PGStream,
     "#), &[&bbox[0], &bbox[1], &bbox[2], &bbox[3]])?)
 }
 
-pub fn get_bbox(conn: &mut postgres::Client, bbox: Vec<f64>) -> Result<geojson::FeatureCollection, HecateError> {
+pub async fn get_bbox(conn: &mut tokio_postgres::Client, bbox: Vec<f64>) -> Result<geojson::FeatureCollection, HecateError> {
     validate::bbox(&bbox)?;
 
     match conn.query("
@@ -756,7 +756,7 @@ pub fn get_bbox(conn: &mut postgres::Client, bbox: Vec<f64>) -> Result<geojson::
                 ST_Intersects(geom, ST_MakeEnvelope($1, $2, $3, $4, 4326))
                 OR ST_Within(geom, ST_MakeEnvelope($1, $2, $3, $4, 4326))
         ) f;
-    ", &[&bbox[0], &bbox[1], &bbox[2], &bbox[3]]) {
+    ", &[&bbox[0], &bbox[1], &bbox[2], &bbox[3]]).await {
         Ok(res) => {
             let mut fc = geojson::FeatureCollection {
                 bbox: None,
@@ -781,7 +781,7 @@ pub fn get_bbox(conn: &mut postgres::Client, bbox: Vec<f64>) -> Result<geojson::
 }
 
 ///Get the history of a particular feature
-pub fn history(conn: &mut postgres::Client, feat_id: i64) -> Result<serde_json::Value, HecateError> {
+pub async fn history(conn: &mut tokio_postgres::Client, feat_id: i64) -> Result<serde_json::Value, HecateError> {
     match conn.query("
         SELECT json_agg (
             JSON_Build_Object(
@@ -808,7 +808,7 @@ pub fn history(conn: &mut postgres::Client, feat_id: i64) -> Result<serde_json::
             geo_history.id = $1 AND
             geo_history.delta = deltas.id AND
             deltas.uid = users.id;
-    ", &[&feat_id]) {
+    ", &[&feat_id]).await {
         Ok(res) => {
             if res.is_empty() {
                 return Err(HecateError::new(400, String::from("Could not find history for given id"), None))
@@ -821,7 +821,7 @@ pub fn history(conn: &mut postgres::Client, feat_id: i64) -> Result<serde_json::
     }
 }
 
-pub fn get_point_history_stream(conn: postgres::Client, point: &str) -> Result<PGStream, HecateError> {
+pub fn get_point_history_stream(conn: tokio_postgres::Client, point: &str) -> Result<PGStream, HecateError> {
     let (lng, lat) = validate::point(point)?;
 
     Ok(PGStream::new(conn, String::from("next_features"), String::from(r#"
@@ -847,7 +847,7 @@ pub fn get_point_history_stream(conn: postgres::Client, point: &str) -> Result<P
     "#), &[&lng, &lat])?)
 }
 
-pub fn get_bbox_history_stream(conn: postgres::Client, bbox: &[f64]) -> Result<PGStream, HecateError> {
+pub fn get_bbox_history_stream(conn: tokio_postgres::Client, bbox: &[f64]) -> Result<PGStream, HecateError> {
     validate::bbox(bbox)?;
 
     Ok(PGStream::new(conn, String::from("next_features"), String::from(r#"

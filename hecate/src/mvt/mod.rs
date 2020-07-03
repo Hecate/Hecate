@@ -4,14 +4,14 @@ pub mod grid;
 use crate::err::HecateError;
 pub use self::grid::{Grid};
 
-pub fn db_get(conn: &mut postgres::Client, coord: String) -> Result<Option<Vec<u8>>, HecateError> {
+pub async fn db_get(conn: &mut tokio_postgres::Client, coord: String) -> Result<Option<Vec<u8>>, HecateError> {
     match conn.query("
         SELECT tile
         FROM tiles
         WHERE
             ref = $1
             AND NOW() > created + INTERVAL '4 hours'
-    ", &[&coord]) {
+    ", &[&coord]).await {
         Ok(rows) => {
             if rows.is_empty() {
                 return Ok(None);
@@ -25,7 +25,7 @@ pub fn db_get(conn: &mut postgres::Client, coord: String) -> Result<Option<Vec<u
     }
 }
 
-pub fn db_create(conn: &mut postgres::Client, z: u8, x: u32, y: u32) -> Result<Vec<u8>, HecateError> {
+pub async fn db_create(conn: &mut tokio_postgres::Client, z: u8, x: u32, y: u32) -> Result<Vec<u8>, HecateError> {
     let grid = Grid::web_mercator();
     let bbox = grid.tile_extent(z, x, y);
 
@@ -50,7 +50,7 @@ pub fn db_create(conn: &mut postgres::Client, z: u8, x: u32, y: u32) -> Result<V
                 ST_Intersects(geom, ST_Transform(ST_MakeEnvelope($1, $2, $3, $4, $5), 4326))
             LIMIT $6
         ) q
-    ", &[&bbox.minx, &bbox.miny, &bbox.maxx, &bbox.maxy, &grid.srid, &limit]) {
+    ", &[&bbox.minx, &bbox.miny, &bbox.maxx, &bbox.maxy, &grid.srid, &limit]).await {
         Ok(res) => {
             let tile: Vec<u8> = res.get(0).unwrap().get(0);
             Ok(tile)
@@ -60,27 +60,27 @@ pub fn db_create(conn: &mut postgres::Client, z: u8, x: u32, y: u32) -> Result<V
 }
 
 
-pub fn db_cache(conn: &mut postgres::Client, coord: String, tile: &[u8]) -> Result<(), HecateError> {
+pub async fn db_cache(conn: &mut tokio_postgres::Client, coord: String, tile: &[u8]) -> Result<(), HecateError> {
     match conn.query("
         INSERT INTO tiles (ref, tile, created)
             VALUES ($1, $2, NOW())
                 ON CONFLICT (ref) DO UPDATE SET tile = $2;
-    ", &[&coord, &tile]) {
+    ", &[&coord, &tile]).await {
         Err(err) => Err(HecateError::from_db(err)),
         _ => Ok(())
     }
 }
 
-pub fn wipe(conn: &mut postgres::Client) -> Result<serde_json::Value, HecateError> {
+pub async fn wipe(conn: &mut tokio_postgres::Client) -> Result<serde_json::Value, HecateError> {
     match conn.execute("
         DELETE FROM tiles;
-    ", &[]) {
+    ", &[]).await {
         Ok(_) => Ok(json!(true)),
         Err(err) => Err(HecateError::from_db(err))
     }
 }
 
-pub fn meta(conn: &mut postgres::Client, z: u8, x: u32, y: u32) -> Result<serde_json::Value, HecateError> {
+pub async fn meta(conn: &mut tokio_postgres::Client, z: u8, x: u32, y: u32) -> Result<serde_json::Value, HecateError> {
     match conn.query("
         SELECT
             COALESCE(row_to_json(t), '{}'::JSON)
@@ -92,7 +92,7 @@ pub fn meta(conn: &mut postgres::Client, z: u8, x: u32, y: u32) -> Result<serde_
             WHERE
                 ref = $1
         ) t;
-    ", &[&format!("{}/{}/{}", z, x, y)]) {
+    ", &[&format!("{}/{}/{}", z, x, y)]).await {
         Ok(rows) => {
             if rows.len() != 1 {
                 Err(HecateError::new(404, String::from("Metadata Not Found"), None))
@@ -109,15 +109,15 @@ pub fn meta(conn: &mut postgres::Client, z: u8, x: u32, y: u32) -> Result<serde_
 /// If you only have a single database connection and want a tile regen
 /// but no tile return, this function can be used to force a regen
 ///
-pub fn regen(conn: &mut postgres::Client, z: u8, x: u32, y: u32) -> Option<HecateError> {
-    let tile = match db_create(conn, z, x, y) {
+pub async fn regen(conn: &mut tokio_postgres::Client, z: u8, x: u32, y: u32) -> Option<HecateError> {
+    let tile = match db_create(conn, z, x, y).await {
         Ok(tile) => tile,
         Err(err) => {
             return Some(err);
         }
     };
 
-    match db_cache(conn, format!("{}/{}/{}", z, x, y), &tile) {
+    match db_cache(conn, format!("{}/{}/{}", z, x, y), &tile).await {
         Ok(_) => None,
         Err(err) => Some(err)
     }
@@ -130,23 +130,23 @@ pub fn regen(conn: &mut postgres::Client, z: u8, x: u32, y: u32) -> Option<Hecat
 /// It uses a readonly connection where possible, only writing
 /// to the master as neede to cache a tile
 ///
-pub fn get(
-    conn_read: &mut postgres::Client,
-    conn_write: &mut postgres::Client,
+pub async fn get(
+    conn_read: &mut tokio_postgres::Client,
+    conn_write: &mut tokio_postgres::Client,
     z: u8, x: u32, y: u32,
     regen: bool
 ) -> Result<Vec<u8>, HecateError> {
     if !regen {
-        if let Some(tile) = db_get(conn_read, format!("{}/{}/{}", z, x, y))? {
+        if let Some(tile) = db_get(conn_read, format!("{}/{}/{}", z, x, y)).await? {
             return Ok(tile);
         }
     }
 
-    let tile = db_create(conn_read, z, x, y)?;
+    let tile = db_create(conn_read, z, x, y).await?;
 
     // A failing cache should be logged but not affect the returned response
     // since we have already generated a valid tile
-    match db_cache(conn_write, format!("{}/{}/{}", z, x, y), &tile) {
+    match db_cache(conn_write, format!("{}/{}/{}", z, x, y), &tile).await {
         Ok(_) => Ok(tile),
         Err(err) => {
             println!("{}", err.as_log());

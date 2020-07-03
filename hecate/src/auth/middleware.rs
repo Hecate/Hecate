@@ -54,7 +54,7 @@ pub struct EnforceAuthMiddleware<S> {
 impl<S, B> Service for EnforceAuthMiddleware<S>
 where
     S: Service<Request = ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
-    S::Future: 'static,
+    S::Future: 'static
 {
     type Request = ServiceRequest;
     type Response = ServiceResponse<B>;
@@ -66,18 +66,6 @@ where
     }
 
     fn call(&mut self, mut req: ServiceRequest) -> Self::Future {
-        let mut db = match self.db.get() {
-            Ok(db) => db,
-            Err(_err) => {
-                return Box::pin(async move {
-                    Ok(req.into_response(
-                        HttpResponse::InternalServerError()
-                            .finish()
-                            .into_body()))
-                })
-            }
-        };
-
         let path: Vec<String> = req.path().split("/").map(|p| {
             p.to_string()
         }).filter(|p| {
@@ -88,7 +76,20 @@ where
             true
         }).collect();
 
-        let mut auth = match Auth::from_sreq(&mut req, &mut db) {
+        let mut auth = {
+            let mut db = match futures::executor::block_on(self.db.get()) {
+                Ok(db) => db,
+                Err(_err) => {
+                    return Box::pin(async move {
+                        Ok(req.into_response(HttpResponse::InternalServerError().finish().into_body()))
+                    })
+                }
+            };
+
+            Auth::from_sreq(&mut req, &mut db)
+        };
+
+        let mut auth = match auth {
             Err(err) => {
                 if err.invalidate {
                     let cookie = actix_http::http::Cookie::build("session", String::from(""))
@@ -109,33 +110,14 @@ where
                         )
                     {
                         return Box::pin(async move {
-                            Ok(req.into_response(
-                                HttpResponse::Found()
-                                    .cookie(cookie)
-                                    .header(http::header::LOCATION, "/admin/login/index.html")
-                                    .finish()
-                                    .into_body()
-                            ))
-                        });
-                    } else {
-                        return Box::pin(async move {
-                            Ok(req.into_response(
-                                HttpResponse::Unauthorized()
-                                    .cookie(cookie)
-                                    .finish()
-                                    .into_body()
-                            ))
+                            Ok(req.into_response(HttpResponse::Found().cookie(cookie).header(http::header::LOCATION, "/admin/login/index.html").finish().into_body()))
                         });
                     }
-                } else {
-                    return Box::pin(async move {
-                        Ok(req.into_response(
-                            HttpResponse::Unauthorized()
-                                .finish()
-                                .into_body()
-                        ))
-                    });
                 }
+
+                return Box::pin(async move {
+                    Ok(req.into_response( HttpResponse::Unauthorized().finish().into_body()))
+                });
             },
             Ok(auth) => auth
         };
@@ -143,11 +125,7 @@ where
         // Disabled accounts should always 401
         if auth.access == AuthAccess::Disabled {
             return Box::pin(async move {
-                Ok(req.into_response(
-                    HttpResponse::Unauthorized()
-                    .finish()
-                    .into_body(),
-                ))
+                Ok(req.into_response(HttpResponse::Unauthorized().finish().into_body()))
             });
         }
 
@@ -189,22 +167,13 @@ where
                     });
                 } else {
                     return Box::pin(async move {
-                        Ok(req.into_response(
-                            HttpResponse::Found()
-                                .header(http::header::LOCATION, "/admin/login/index.html")
-                                .finish()
-                                .into_body(),
-                        ))
+                        Ok(req.into_response(HttpResponse::Found().header(http::header::LOCATION, "/admin/login/index.html").finish().into_body()))
                     });
                 }
             } else {
                 // API Results should simply return a 401
                 return Box::pin(async move {
-                    Ok(req.into_response(
-                        HttpResponse::Unauthorized()
-                            .finish()
-                            .into_body(),
-                    ))
+                    Ok(req.into_response(HttpResponse::Unauthorized().finish().into_body()))
                 });
             }
         }

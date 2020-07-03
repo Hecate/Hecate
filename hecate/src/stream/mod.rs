@@ -14,9 +14,9 @@ pub struct PGStream {
     eot: bool, //End of Tranmission has been sent
     cursor: String,
     pending: Option<Vec<u8>>,
-    trans: postgres::Transaction<'static>,
+    trans: tokio_postgres::Transaction<'static>,
     #[allow(dead_code)]
-    conn: Box<postgres::Client>
+    conn: Box<tokio_postgres::Client>
 }
 
 impl futures::stream::Stream for PGStream {
@@ -117,10 +117,10 @@ impl std::io::Read for PGStream {
 }
 
 impl PGStream {
-    pub fn new(pg_conn: postgres::Client, cursor: String, query: String, params: &[&(dyn ToSql + std::marker::Sync)]) -> Result<Self, HecateError> {
+    pub fn new(pg_conn: tokio_postgres::Client, cursor: String, query: String, params: &[&(dyn ToSql + std::marker::Sync)]) -> Result<Self, HecateError> {
         let mut conn = Box::new(pg_conn);
 
-        let mut trans: postgres::Transaction = unsafe {
+        let mut trans: tokio_postgres::Transaction = unsafe {
             mem::transmute(conn.transaction().unwrap())
         };
 
