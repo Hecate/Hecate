@@ -123,19 +123,19 @@ fn main() {
 }
 
 fn database_check(conn_str: &String, is_read: bool) {
-    match futures::executor::block_on(tokio_postgres::connect(format!("postgres://{}", conn_str).as_str(), tokio_postgres::NoTls)) {
-        Ok(conn) => {
+    match postgres::Client::connect(format!("postgres://{}", conn_str).as_str(), postgres::NoTls) {
+        Ok(mut conn) => {
             let conn_type = match is_read {
                 true => String::from("READ"),
                 false => String::from("READ/WRITE")
             };
 
             if !is_read {
-                match futures::executor::block_on(conn.0.query("
+                match conn.query("
                     SELECT
                         (regexp_matches(version(), 'PostgreSQL (.*?) '))[1] AS postgres_v,
                         (regexp_matches(postgis_version(), '^(.*?) '))[1] AS postgis_v
-                ", &[])) {
+                ", &[]) {
                     Ok(res) => {
                         if res.len() != 1 {
                             println!("ERROR: Connection unable obtain PostgreSQL version using ({}) {}", conn_type, conn_str);
@@ -151,7 +151,7 @@ fn database_check(conn_str: &String, is_read: bool) {
                         };
                         if ! hecate::POSTGRES_VERSION.matches(&got_postgres_v) {
                             panic!(
-                                "ERROR: Hecate requires PostgreSQL version {}, got {}.", 
+                                "ERROR: Hecate requires PostgreSQL version {}, got {}.",
                                 hecate::POSTGRES_VERSION.to_string(),
                                 got_postgres_v
                             );
@@ -181,9 +181,9 @@ fn database_check(conn_str: &String, is_read: bool) {
                 }
             }
 
-            match futures::executor::block_on(conn.0.query("
+            match conn.query("
                 SELECT id FROM geo LIMIT 1
-            ", &[])) {
+            ", &[]) {
                 Ok(_) => (),
                 Err(err) => {
                     println!("ERROR: Connection unable to {} geo table using {}", conn_type, conn_str);
