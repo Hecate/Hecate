@@ -66,6 +66,7 @@ where
     }
 
     fn call(&mut self, mut req: ServiceRequest) -> Self::Future {
+        println!("HERE");
         let path: Vec<String> = req.path().split("/").map(|p| {
             p.to_string()
         }).filter(|p| {
@@ -88,6 +89,7 @@ where
 
             futures::executor::block_on(Auth::from_sreq(&mut req, &mut db))
         };
+        println!("AND HERE HERE");
 
         let mut auth = match auth {
             Err(err) => {

@@ -22,9 +22,28 @@ impl Database {
             sandbox
         }
     }
+
+    pub async fn explode(&self) -> (DbReplica, DbSandbox, DbReadWrite) {
+        let mut db_replica: Vec<Pool> = Vec::with_capacity(self.replica.len());
+        let mut db_sandbox: Vec<Pool> = Vec::with_capacity(self.sandbox.len());
+
+        for dbstr in self.replica.iter() {
+            db_replica.push(init_pool(&dbstr).await);
+        }
+        let db_replica = DbReplica::new(Some(db_replica));
+
+        for dbstr in self.sandbox.iter() {
+            db_sandbox.push(init_pool(&dbstr).await);
+        }
+        let db_sandbox = DbSandbox::new(Some(db_sandbox));
+
+        let db_main = DbReadWrite::new(init_pool(&self.main).await);
+
+        (db_replica, db_sandbox, db_main)
+    }
 }
 
-pub fn init_pool(
+pub async fn init_pool(
     database: &str
 ) -> Pool {
     let manager = PostgresConnectionManager::new(
@@ -32,11 +51,11 @@ pub fn init_pool(
         tokio_postgres::NoTls
     );
 
-    futures::executor::block_on(
-        Pool::builder()
-            .max_size(15)
-            .build(manager)
-    ).unwrap()
+    Pool::builder()
+        .max_size(15)
+        .build(manager)
+        .await
+        .unwrap()
 }
 
 #[derive(Clone)]

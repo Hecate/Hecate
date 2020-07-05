@@ -76,9 +76,7 @@ pub async fn start(
 
     let auth_rules = auth::AuthContainer(auth_rules);
 
-    let db_replica = DbReplica::new(Some(database.replica.iter().map(|db| db::init_pool(&db)).collect()));
-    let db_sandbox = DbSandbox::new(Some(database.sandbox.iter().map(|db| db::init_pool(&db)).collect()));
-    let db_main = DbReadWrite::new(init_pool(&database.main));
+    let (db_replica, db_sandbox, db_main) = database.explode().await;
 
     let worker = worker::Worker::new(database.main);
 
