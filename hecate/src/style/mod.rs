@@ -4,7 +4,7 @@ use crate::err::HecateError;
 /// Creates a new GL JS Style under a given user account
 ///
 /// By default styles are private and can only be accessed by a single user
-pub fn create(conn: &impl postgres::GenericConnection, uid: i64, style: &str) -> Result<i64, HecateError> {
+pub async fn create(conn: &mut tokio_postgres::Client, uid: i64, style: &str) -> Result<i64, HecateError> {
     match conn.query("
         INSERT INTO styles (name, style, uid, public)
             VALUES (
@@ -14,9 +14,9 @@ pub fn create(conn: &impl postgres::GenericConnection, uid: i64, style: &str) ->
                 false
             )
             RETURNING id;
-    ", &[&style, &uid]) {
+    ", &[&style, &uid]).await {
         Ok(rows) => {
-            let id = rows.get(0).get(0);
+            let id = rows.get(0).unwrap().get(0);
             Ok(id)
         },
         Err(err) => Err(HecateError::from_db(err))
@@ -25,7 +25,7 @@ pub fn create(conn: &impl postgres::GenericConnection, uid: i64, style: &str) ->
 
 /// Get the style by id, if the style is public, the user need not be logged in,
 /// if the style is private ensure the owner is the requester
-pub fn get(conn: &impl postgres::GenericConnection, uid: &Option<i64>, style_id: i64) -> Result<Value, HecateError> {
+pub async fn get(conn: &mut tokio_postgres::Client, uid: &Option<i64>, style_id: i64) -> Result<Value, HecateError> {
     match conn.query("
         SELECT
             row_to_json(t) as style
@@ -48,12 +48,12 @@ pub fn get(conn: &impl postgres::GenericConnection, uid: &Option<i64>, style_id:
                 )
                 AND users.id = styles.uid
         ) t
-    ", &[&style_id, &uid]) {
+    ", &[&style_id, &uid]).await {
         Ok(rows) => {
             if rows.len() != 1 {
                 Err(HecateError::new(404, String::from("Style Not Found"), None))
             } else {
-                let style: Value = rows.get(0).get(0);
+                let style: Value = rows.get(0).unwrap().get(0);
 
                 Ok(style)
             }
@@ -62,7 +62,7 @@ pub fn get(conn: &impl postgres::GenericConnection, uid: &Option<i64>, style_id:
     }
 }
 
-pub fn update(conn: &impl postgres::GenericConnection, uid: i64, style_id: i64, style: &str) -> Result<bool, HecateError> {
+pub async fn update(conn: &mut tokio_postgres::Client, uid: i64, style_id: i64, style: &str) -> Result<bool, HecateError> {
     match conn.execute("
         UPDATE styles
             SET
@@ -71,7 +71,7 @@ pub fn update(conn: &impl postgres::GenericConnection, uid: i64, style_id: i64, 
             WHERE
                 id = $1
                 AND uid = $2
-    ", &[&style_id, &uid, &style]) {
+    ", &[&style_id, &uid, &style]).await {
         Ok(updated) => {
             if updated == 0 {
                 Err(HecateError::new(404, String::from("Style Not Found"), None))
@@ -83,7 +83,7 @@ pub fn update(conn: &impl postgres::GenericConnection, uid: i64, style_id: i64, 
     }
 }
 
-pub fn access(conn: &impl postgres::GenericConnection, uid: i64, style_id: i64, access: bool) -> Result<bool, HecateError> {
+pub async fn access(conn: &mut tokio_postgres::Client, uid: i64, style_id: i64, access: bool) -> Result<bool, HecateError> {
     match conn.execute("
         UPDATE styles
             SET
@@ -91,7 +91,7 @@ pub fn access(conn: &impl postgres::GenericConnection, uid: i64, style_id: i64, 
             WHERE
                 id = $1
                 AND uid = $2
-    ", &[&style_id, &uid, &access]) {
+    ", &[&style_id, &uid, &access]).await {
         Ok(updated) => {
             if updated == 0 {
                 Err(HecateError::new(404, String::from("Style Not Found"), None))
@@ -104,14 +104,14 @@ pub fn access(conn: &impl postgres::GenericConnection, uid: i64, style_id: i64, 
 }
 
 ///Allow the owner of a given style to delete it
-pub fn delete(conn: &impl postgres::GenericConnection, uid: i64, style_id: i64) -> Result<bool, HecateError> {
+pub async fn delete(conn: &mut tokio_postgres::Client, uid: i64, style_id: i64) -> Result<bool, HecateError> {
     match conn.execute("
         DELETE
             FROM styles
             WHERE
                 uid = $1
                 AND id = $2
-    ", &[&uid, &style_id]) {
+    ", &[&uid, &style_id]).await {
         Ok(deleted) => {
             if deleted == 0 {
                 Err(HecateError::new(404, String::from("Style Not Found"), None))
@@ -124,7 +124,7 @@ pub fn delete(conn: &impl postgres::GenericConnection, uid: i64, style_id: i64) 
 }
 
 ///Return a list of all styles (public and private) for a given user
-pub fn list_user(conn: &impl postgres::GenericConnection, uid: i64) -> Result<Value, HecateError> {
+pub async fn list_user(conn: &mut tokio_postgres::Client, uid: i64) -> Result<Value, HecateError> {
     match conn.query("
         SELECT
             COALESCE(JSON_Agg(row_to_json(t)), '[]'::JSON)
@@ -143,12 +143,12 @@ pub fn list_user(conn: &impl postgres::GenericConnection, uid: i64) -> Result<Va
                 AND users.id = uid
             ORDER BY styles.id
         ) t;
-    ", &[&uid]) {
+    ", &[&uid]).await {
         Ok(rows) => {
             if rows.is_empty() {
                 Err(HecateError::new(404, String::from("Style Not Found"), None))
             } else {
-                let list: Value = rows.get(0).get(0);
+                let list: Value = rows.get(0).unwrap().get(0);
                 Ok(list)
             }
         },
@@ -157,7 +157,7 @@ pub fn list_user(conn: &impl postgres::GenericConnection, uid: i64) -> Result<Va
 }
 
 ///Return a list of public styles for a given user
-pub fn list_user_public(conn: &impl postgres::GenericConnection, uid: i64) -> Result<Value, HecateError> {
+pub async fn list_user_public(conn: &mut tokio_postgres::Client, uid: i64) -> Result<Value, HecateError> {
     match conn.query("
         SELECT
             COALESCE(JSON_Agg(row_to_json(t)), '[]'::JSON)
@@ -177,12 +177,12 @@ pub fn list_user_public(conn: &impl postgres::GenericConnection, uid: i64) -> Re
                 AND uid = users.id
             ORDER BY styles.id
         ) t;
-    ", &[&uid]) {
+    ", &[&uid]).await {
         Ok(rows) => {
             if rows.is_empty() {
                 Err(HecateError::new(404, String::from("Style Not Found"), None))
             } else {
-                let list: Value = rows.get(0).get(0);
+                let list: Value = rows.get(0).unwrap().get(0);
                 Ok(list)
             }
         },
@@ -190,7 +190,7 @@ pub fn list_user_public(conn: &impl postgres::GenericConnection, uid: i64) -> Re
     }
 }
 
-pub fn list_public(conn: &impl postgres::GenericConnection) -> Result<Value, HecateError> {
+pub async fn list_public(conn: &mut tokio_postgres::Client) -> Result<Value, HecateError> {
     match conn.query("
         SELECT
             COALESCE(JSON_Agg(row_to_json(t)), '[]'::JSON)
@@ -209,12 +209,12 @@ pub fn list_public(conn: &impl postgres::GenericConnection) -> Result<Value, Hec
                 AND uid = users.id
             ORDER BY styles.id
         ) t;
-    ", &[]) {
+    ", &[]).await {
         Ok(rows) => {
             if rows.is_empty() {
                 Err(HecateError::new(404, String::from("Style Not Found"), None))
             } else {
-                let list: Value = rows.get(0).get(0);
+                let list: Value = rows.get(0).unwrap().get(0);
                 Ok(list)
             }
         },

@@ -14,16 +14,17 @@ pub struct PGStream {
     eot: bool, //End of Tranmission has been sent
     cursor: String,
     pending: Option<Vec<u8>>,
-    trans: postgres::transaction::Transaction<'static>,
+    trans: tokio_postgres::Transaction<'static>,
     #[allow(dead_code)]
-    conn: Box<r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager>>
+    conn: Box<tokio_postgres::Client>
 }
 
 impl futures::stream::Stream for PGStream {
     type Item = Result<Bytes, HecateError>;
 
     fn poll_next(mut self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Option<Self::Item>> {
-        let rows = match self.trans.query(&*format!("FETCH 1000 FROM {};", &self.cursor), &[]) {
+        let cursor = self.cursor.to_string();
+        let rows = match futures::executor::block_on(self.trans.query(&*format!("FETCH 1000 FROM {};", &cursor), &[])) {
             Ok(rows) => rows,
             Err(_err) => { return Poll::Ready(None) }
         };
@@ -45,7 +46,7 @@ impl futures::stream::Stream for PGStream {
         let mut feats = String::new();
 
         for row_it in 0..rows.len() {
-            let feat: String = rows.get(row_it).get(0);
+            let feat: String = rows.get(row_it).unwrap().get(0);
             feats.push_str(&*feat);
             feats.push('\n');
         }
@@ -65,7 +66,7 @@ impl std::io::Read for PGStream {
                 write = self.pending.clone().unwrap();
                 self.pending = None;
             } else {
-                let rows = match self.trans.query(&*format!("FETCH 1000 FROM {};", &self.cursor), &[]) {
+                let rows = match futures::executor::block_on(self.trans.query(&*format!("FETCH 1000 FROM {};", &self.cursor), &[])) {
                     Ok(rows) => rows,
                     Err(err) => {
                         return Err(Error::new(ErrorKind::Other, format!("{:?}", err)))
@@ -74,7 +75,7 @@ impl std::io::Read for PGStream {
 
                 if !rows.is_empty() {
                     for row_it in 0..rows.len() {
-                        let feat: String = rows.get(row_it).get(0);
+                        let feat: String = rows.get(row_it).unwrap().get(0);
                         write.append(&mut feat.into_bytes().to_vec());
                         write.push(0x0A);
                     }
@@ -116,14 +117,14 @@ impl std::io::Read for PGStream {
 }
 
 impl PGStream {
-    pub fn new(pg_conn: r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager>, cursor: String, query: String, params: &[&dyn ToSql]) -> Result<Self, HecateError> {
-        let conn = Box::new(pg_conn);
+    pub async fn new(pg_conn: tokio_postgres::Client, cursor: String, query: String, params: &[&(dyn ToSql + std::marker::Sync)]) -> Result<Self, HecateError> {
+        let mut conn = Box::new(pg_conn);
 
-        let trans: postgres::transaction::Transaction = unsafe {
-            mem::transmute(conn.transaction().unwrap())
+        let trans: tokio_postgres::Transaction = unsafe {
+            mem::transmute(conn.transaction().await.unwrap())
         };
 
-        match trans.execute(&*query, params) {
+        match trans.execute(&*query, params).await {
             Ok(_) => {
                 Ok(PGStream {
                     eot: false,
