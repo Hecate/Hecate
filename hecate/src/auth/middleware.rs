@@ -76,7 +76,7 @@ where
             true
         }).collect();
 
-        let mut auth = {
+        let auth = {
             let mut db = match futures::executor::block_on(self.db.get()) {
                 Ok(db) => db,
                 Err(_err) => {
@@ -86,7 +86,7 @@ where
                 }
             };
 
-            Auth::from_sreq(&mut req, &mut db)
+            futures::executor::block_on(Auth::from_sreq(&mut req, &mut db))
         };
 
         let mut auth = match auth {

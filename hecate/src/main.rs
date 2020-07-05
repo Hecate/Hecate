@@ -9,7 +9,6 @@ use std::fs::File;
 use std::io::Read;
 use hecate::auth::CustomAuth;
 use hecate::auth::AuthModule;
-use std::error::Error;
 use clap::App;
 use semver::Version;
 
@@ -124,7 +123,7 @@ fn main() {
 }
 
 fn database_check(conn_str: &String, is_read: bool) {
-    match tokio_postgres::Client::connect(format!("postgres://{}", conn_str), postgres::TlsMode::None) {
+    match futures::executor::block_on(tokio_postgres::connect(format!("postgres://{}", conn_str).as_str(), tokio_postgres::NoTls)) {
         Ok(conn) => {
             let conn_type = match is_read {
                 true => String::from("READ"),
@@ -132,17 +131,17 @@ fn database_check(conn_str: &String, is_read: bool) {
             };
 
             if !is_read {
-                match conn.query("
+                match futures::executor::block_on(conn.0.query("
                     SELECT
                         (regexp_matches(version(), 'PostgreSQL (.*?) '))[1] AS postgres_v,
                         (regexp_matches(postgis_version(), '^(.*?) '))[1] AS postgis_v
-                ", &[]) {
+                ", &[])) {
                     Ok(res) => {
                         if res.len() != 1 {
                             println!("ERROR: Connection unable obtain PostgreSQL version using ({}) {}", conn_type, conn_str);
                             std::process::exit(1);
                         }
-                        let postgres_v: String = res.get(0).get(0);
+                        let postgres_v: String = res.get(0).unwrap().get(0);
                         let got_postgres_v = match Version::parse(&postgres_v){
                             Ok(version) => version,
                             Err(_) => {
@@ -157,7 +156,7 @@ fn database_check(conn_str: &String, is_read: bool) {
                                 got_postgres_v
                             );
                         }
-                        let postgis_v: String = res.get(0).get(1);
+                        let postgis_v: String = res.get(0).unwrap().get(1);
                         let got_postgis_v = match Version::parse(&postgis_v){
                             Ok(version) => version,
                             Err(_) => {
@@ -176,20 +175,20 @@ fn database_check(conn_str: &String, is_read: bool) {
                     Err(err) => {
                         println!("ERROR: Connection unable obtain PostgreSQL version using ({}) {}", conn_type, conn_str);
                         println!("ERROR: {}", err);
-                        println!("ERROR: Caused by: {}", err.source().unwrap());
+                        println!("ERROR: Caused by: {}", err.to_string());
                         std::process::exit(1);
                     }
                 }
             }
 
-            match conn.query("
+            match futures::executor::block_on(conn.0.query("
                 SELECT id FROM geo LIMIT 1
-            ", &[]) {
+            ", &[])) {
                 Ok(_) => (),
                 Err(err) => {
                     println!("ERROR: Connection unable to {} geo table using {}", conn_type, conn_str);
                     println!("ERROR: {}", err);
-                    println!("ERROR: Caused by: {}", err.source().unwrap());
+                    println!("ERROR: Caused by: {}", err.to_string());
                     std::process::exit(1);
                 }
             }
@@ -197,7 +196,7 @@ fn database_check(conn_str: &String, is_read: bool) {
         Err(err) => {
             println!("ERROR: Unable to connect to {}", conn_str);
             println!("ERROR: {}", err);
-            println!("ERROR: caused by: {}", err.source().unwrap());
+            println!("ERROR: caused by: {}", err.to_string());
 
             std::process::exit(1);
         }

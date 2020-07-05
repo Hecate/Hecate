@@ -1,8 +1,6 @@
 use crate::err::HecateError;
-use std::ops::DerefMut;
 use bb8_postgres::PostgresConnectionManager;
 use tokio_postgres::Client;
-use futures::{future::lazy};
 
 pub type ConnectionManager = bb8_postgres::PostgresConnectionManager<tokio_postgres::NoTls>;
 pub type Pool = bb8::Pool<ConnectionManager>;
@@ -27,7 +25,6 @@ impl Database {
 }
 
 pub fn init_pool(
-    runner: &mut actix_rt::SystemRunner,
     database: &str
 ) -> Pool {
     let manager = PostgresConnectionManager::new(
@@ -35,13 +32,11 @@ pub fn init_pool(
         tokio_postgres::NoTls
     );
 
-    runner.block_on(lazy(|_| {
+    futures::executor::block_on(
         Pool::builder()
             .max_size(15)
             .build(manager)
-            .map_err(|e| bb8::RunError::User(e))
-            .map_err(|e| panic!("{:?}", e))
-    })).unwrap()
+    ).unwrap()
 }
 
 #[derive(Clone)]
@@ -66,7 +61,7 @@ impl DbReplica {
         }
     }
 
-    pub async fn get(&self) -> Result<&mut Client, HecateError> {
+    pub async fn get(&self) -> Result<bb8::PooledConnection<'_, bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>, HecateError> {
         match self.0 {
             None => Err(HecateError::new(503, String::from("No Database Replica Connection"), None)),
             Some(ref db_replica) => {
@@ -74,7 +69,7 @@ impl DbReplica {
                 let db_replica_it = rng.gen_range(0, db_replica.len());
 
                 match db_replica.get(db_replica_it).unwrap().get().await {
-                    Ok(mut conn) => Ok(*conn),
+                    Ok(conn) => Ok(conn),
                     Err(_) => Err(HecateError::new(503, String::from("Could not connect to database"), None))
                 }
             }
@@ -104,7 +99,7 @@ impl DbSandbox {
         }
     }
 
-    pub async fn get(&self) -> Result<&mut Client, HecateError> {
+    pub async fn get(&self) -> Result<bb8::PooledConnection<'_, bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>, HecateError> {
         match self.0 {
             None => Err(HecateError::new(503, String::from("No Database Sandbox Connection"), None)),
             Some(ref db_sandbox) => {
@@ -112,7 +107,7 @@ impl DbSandbox {
                 let db_sandbox_it = rng.gen_range(0, db_sandbox.len());
 
                 match db_sandbox.get(db_sandbox_it).unwrap().get().await {
-                    Ok(mut conn) => Ok(*conn),
+                    Ok(conn) => Ok(conn),
                     Err(_) => Err(HecateError::new(503, String::from("Could not connect to database"), None))
                 }
             }
@@ -127,9 +122,9 @@ impl DbReadWrite {
         DbReadWrite(database)
     }
 
-    pub async fn get(&self) -> Result<&mut Client, HecateError> {
+    pub async fn get(&self) -> Result<bb8::PooledConnection<'_, bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>, HecateError> {
         match self.0.get().await {
-            Ok(mut conn) => Ok(*conn),
+            Ok(conn) => Ok(conn),
             Err(_) => Err(HecateError::new(503, String::from("Could not connect to database"), None))
         }
     }

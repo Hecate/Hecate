@@ -74,7 +74,7 @@ pub async fn list(conn: &mut tokio_postgres::Client, limit: Option<i16>) -> Resu
     }
 }
 
-pub fn get(conn: tokio_postgres::Client, bounds: String) -> Result<PGStream, HecateError> {
+pub async fn get(conn: tokio_postgres::Client, bounds: String) -> Result<PGStream, HecateError> {
     Ok(PGStream::new(conn, String::from("next_bounds"), String::from(r#"
         DECLARE next_bounds CURSOR FOR
             SELECT
@@ -100,7 +100,7 @@ pub fn get(conn: tokio_postgres::Client, bounds: String) -> Result<PGStream, Hec
                 WHERE
                     ST_Intersects(geo.geom, b.subgeom)
             ) t
-    "#), &[&bounds])?)
+    "#), &[&bounds]).await?)
 }
 
 pub async fn meta(conn: &mut tokio_postgres::Client, name: String) -> Result<serde_json::Value, HecateError> {

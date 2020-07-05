@@ -210,7 +210,7 @@ pub fn get_key(feat: &geojson::Feature) -> Result<Option<String>, HecateError> {
     }
 }
 
-pub fn action(trans: &mut tokio_postgres::Transaction<'_>, schema_json: &Option<serde_json::value::Value>, feat: &geojson::Feature, delta: &Option<i64>) -> Result<Response, HecateError> {
+pub async fn action(trans: &mut tokio_postgres::Transaction<'_>, schema_json: &Option<serde_json::value::Value>, feat: &geojson::Feature, delta: &Option<i64>) -> Result<Response, HecateError> {
     let action = get_action(&feat)?;
 
     let mut scope = valico::json_schema::Scope::new();
@@ -225,10 +225,10 @@ pub fn action(trans: &mut tokio_postgres::Transaction<'_>, schema_json: &Option<
     };
 
     let res = match action {
-        Action::Create => create(trans, &schema, &feat, &delta)?,
-        Action::Modify => modify(trans, &schema, &feat, &delta)?,
-        Action::Restore => restore(trans, &schema, &feat, &delta)?,
-        Action::Delete => delete(trans, &feat, &delta)?
+        Action::Create => create(trans, &schema, &feat, &delta).await?,
+        Action::Modify => modify(trans, &schema, &feat, &delta).await?,
+        Action::Restore => restore(trans, &schema, &feat, &delta).await?,
+        Action::Delete => delete(trans, &feat, &delta).await?
     };
 
     Ok(res)
@@ -690,7 +690,7 @@ pub async fn restore(trans: &mut tokio_postgres::Transaction<'_>, schema: &Optio
     }
 }
 
-pub fn get_point_stream(conn: tokio_postgres::Client, point: &str) -> Result<PGStream, HecateError> {
+pub async fn get_point_stream(conn: tokio_postgres::Client, point: &str) -> Result<PGStream, HecateError> {
     let (lng, lat) = validate::point(point)?;
 
     Ok(PGStream::new(conn, String::from("next_features"), String::from(r#"
@@ -711,10 +711,10 @@ pub fn get_point_stream(conn: tokio_postgres::Client, point: &str) -> Result<PGS
                 ORDER BY
                     ST_Distance(ST_SetSRID(ST_MakePoint($1, $2), 4326), geo.geom) DESC
             ) f;
-    "#), &[&lng, &lat])?)
+    "#), &[&lng, &lat]).await?)
 }
 
-pub fn get_bbox_stream(conn: tokio_postgres::Client, bbox: &[f64]) -> Result<PGStream, HecateError> {
+pub async fn get_bbox_stream(conn: tokio_postgres::Client, bbox: &[f64]) -> Result<PGStream, HecateError> {
     validate::bbox(bbox)?;
 
     Ok(PGStream::new(conn, String::from("next_features"), String::from(r#"
@@ -734,7 +734,7 @@ pub fn get_bbox_stream(conn: tokio_postgres::Client, bbox: &[f64]) -> Result<PGS
                     ST_Intersects(geom, ST_MakeEnvelope($1, $2, $3, $4, 4326))
                     OR ST_Within(geom, ST_MakeEnvelope($1, $2, $3, $4, 4326))
             ) f;
-    "#), &[&bbox[0], &bbox[1], &bbox[2], &bbox[3]])?)
+    "#), &[&bbox[0], &bbox[1], &bbox[2], &bbox[3]]).await?)
 }
 
 pub async fn get_bbox(conn: &mut tokio_postgres::Client, bbox: Vec<f64>) -> Result<geojson::FeatureCollection, HecateError> {
@@ -821,7 +821,7 @@ pub async fn history(conn: &mut tokio_postgres::Client, feat_id: i64) -> Result<
     }
 }
 
-pub fn get_point_history_stream(conn: tokio_postgres::Client, point: &str) -> Result<PGStream, HecateError> {
+pub async fn get_point_history_stream(conn: tokio_postgres::Client, point: &str) -> Result<PGStream, HecateError> {
     let (lng, lat) = validate::point(point)?;
 
     Ok(PGStream::new(conn, String::from("next_features"), String::from(r#"
@@ -844,10 +844,10 @@ pub fn get_point_history_stream(conn: tokio_postgres::Client, point: &str) -> Re
                 ORDER BY
                     ST_Distance(ST_SetSRID(ST_MakePoint($1, $2), 4326), geom) DESC
             ) f;
-    "#), &[&lng, &lat])?)
+    "#), &[&lng, &lat]).await?)
 }
 
-pub fn get_bbox_history_stream(conn: tokio_postgres::Client, bbox: &[f64]) -> Result<PGStream, HecateError> {
+pub async fn get_bbox_history_stream(conn: tokio_postgres::Client, bbox: &[f64]) -> Result<PGStream, HecateError> {
     validate::bbox(bbox)?;
 
     Ok(PGStream::new(conn, String::from("next_features"), String::from(r#"
@@ -869,5 +869,5 @@ pub fn get_bbox_history_stream(conn: tokio_postgres::Client, bbox: &[f64]) -> Re
                     ST_Intersects(geom, ST_MakeEnvelope($1, $2, $3, $4, 4326))
                     OR ST_Within(geom, ST_MakeEnvelope($1, $2, $3, $4, 4326))
             ) f;
-    "#), &[&bbox[0], &bbox[1], &bbox[2], &bbox[3]])?)
+    "#), &[&bbox[0], &bbox[1], &bbox[2], &bbox[3]]).await?)
 }

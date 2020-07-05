@@ -24,7 +24,7 @@ impl futures::stream::Stream for PGStream {
 
     fn poll_next(mut self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Option<Self::Item>> {
         let cursor = self.cursor.to_string();
-        let rows = match self.trans.query(&*format!("FETCH 1000 FROM {};", &cursor), &[]) {
+        let rows = match futures::executor::block_on(self.trans.query(&*format!("FETCH 1000 FROM {};", &cursor), &[])) {
             Ok(rows) => rows,
             Err(_err) => { return Poll::Ready(None) }
         };
@@ -66,7 +66,7 @@ impl std::io::Read for PGStream {
                 write = self.pending.clone().unwrap();
                 self.pending = None;
             } else {
-                let rows = match self.trans.query(&*format!("FETCH 1000 FROM {};", &self.cursor), &[]) {
+                let rows = match futures::executor::block_on(self.trans.query(&*format!("FETCH 1000 FROM {};", &self.cursor), &[])) {
                     Ok(rows) => rows,
                     Err(err) => {
                         return Err(Error::new(ErrorKind::Other, format!("{:?}", err)))
@@ -117,14 +117,14 @@ impl std::io::Read for PGStream {
 }
 
 impl PGStream {
-    pub fn new(pg_conn: tokio_postgres::Client, cursor: String, query: String, params: &[&(dyn ToSql + std::marker::Sync)]) -> Result<Self, HecateError> {
+    pub async fn new(pg_conn: tokio_postgres::Client, cursor: String, query: String, params: &[&(dyn ToSql + std::marker::Sync)]) -> Result<Self, HecateError> {
         let mut conn = Box::new(pg_conn);
 
-        let mut trans: tokio_postgres::Transaction = unsafe {
-            mem::transmute(conn.transaction().unwrap())
+        let trans: tokio_postgres::Transaction = unsafe {
+            mem::transmute(conn.transaction().await.unwrap())
         };
 
-        match trans.execute(&*query, params) {
+        match trans.execute(&*query, params).await {
             Ok(_) => {
                 Ok(PGStream {
                     eot: false,

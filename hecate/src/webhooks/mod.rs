@@ -199,7 +199,7 @@ pub fn is_valid_action(actions: &[String]) -> bool {
     true
 }
 
-pub fn send(conn: &mut tokio_postgres::Client, task: &worker::TaskType) -> Result<(), HecateError> {
+pub async fn send(conn: &mut tokio_postgres::Client, task: &worker::TaskType) -> Result<(), HecateError> {
     let action = match task {
         worker::TaskType::Delta(_) => Action::Delta,
         worker::TaskType::User(_) => Action::User,
@@ -207,7 +207,7 @@ pub fn send(conn: &mut tokio_postgres::Client, task: &worker::TaskType) -> Resul
         worker::TaskType::Meta => Action::Meta
     };
 
-    for hook in list(conn, action)? {
+    for hook in list(conn, action).await? {
         let client = reqwest::Client::new();
 
         let body = match task {

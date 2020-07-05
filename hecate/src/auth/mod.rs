@@ -255,7 +255,7 @@ impl Auth {
         })
     }
 
-    pub fn from_sreq(req: &mut actix_web::dev::ServiceRequest, conn: &mut tokio_postgres::Client) -> Result<Self, HecateError> {
+    pub async fn from_sreq(req: &mut actix_web::dev::ServiceRequest, conn: &mut tokio_postgres::Client) -> Result<Self, HecateError> {
         let mut auth = Auth::new();
 
         let path: Vec<String> = req.path().split('/').map(|p| {
@@ -287,7 +287,7 @@ impl Auth {
             // The /token/{token} path is special and does not use the
             // validate() call below as tokens used in URL are currently
             // only able to perform Read operations
-            auth.validate(conn)?;
+            auth.validate(conn).await?;
 
             auth.scope = Scope::Read;
 
@@ -300,7 +300,7 @@ impl Auth {
             if !token.is_empty() {
                 auth.token = Some(token);
 
-                return match auth.validate(conn) {
+                return match auth.validate(conn).await {
                     Err(err) => {
                         return Err(err.set_invalidate(true));
                     },
@@ -338,7 +338,7 @@ impl Auth {
 
         }
 
-        auth.validate(conn)?;
+        auth.validate(conn).await?;
 
         Ok(auth)
     }
@@ -368,7 +368,7 @@ impl Auth {
     ///
     /// Note: Once validated the token/basic auth used to validate the user will be set to null
     ///
-    pub fn validate(&mut self, conn: &mut tokio_postgres::Client) -> Result<bool, HecateError> {
+    pub async fn validate(&mut self, conn: &mut tokio_postgres::Client) -> Result<bool, HecateError> {
         if self.basic.is_some() {
             match conn.query("
                 SELECT
@@ -378,7 +378,7 @@ impl Auth {
                 WHERE
                     username = $1
                     AND password = crypt($2, password)
-            ", &[ &self.basic.as_ref().unwrap().0 , &self.basic.as_ref().unwrap().1 ]) {
+            ", &[ &self.basic.as_ref().unwrap().0 , &self.basic.as_ref().unwrap().1 ]).await {
                 Ok(res) => {
                     if res.len() != 1 {
                         return Err(config::not_authed());
@@ -424,7 +424,7 @@ impl Auth {
                         OR now() < expiry
                     )
                     AND users_tokens.uid = users.id
-            ", &[ &self.token.as_ref().unwrap() ]) {
+            ", &[ &self.token.as_ref().unwrap() ]).await {
                 Ok(res) => {
                     if res.is_empty() {
                         return Err(config::not_authed());
