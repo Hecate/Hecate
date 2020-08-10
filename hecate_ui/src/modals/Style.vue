@@ -59,7 +59,7 @@
 
                             <div class='col col--4 py12'>
                                 <template v-if="credentials.uid === uid">
-                                    <button @click='updateStyle(id, name, JSON.parse(style))' class='btn round btn--stroke w-full'>Save &amp; Apply Style</button>
+                                    <button @click='updateStyle(style_id, name, JSON.parse(style))' class='btn round btn--stroke w-full'>Save &amp; Apply Style</button>
                                 </template>
                                 <template v-else>
                                     <button @click='setStyle(style_id, JSON.parse(style))' class='btn round btn--stroke w-full'>Apply Style</button>
