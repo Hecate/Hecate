@@ -43,7 +43,7 @@ RUN curl 'https://nodejs.org/dist/v10.15.3/node-v10.15.3-linux-x64.tar.gz' | tar
     && cp ./node-v10.15.3-linux-x64/bin/node /usr/bin/ \
     && ./node-v10.15.3-linux-x64/bin/npm install -g npm \
     && npm install -g yarn \
-    && curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain 1.40.0  \
+    && curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain 1.56.1  \
     && echo "local all all trust " > /etc/postgresql/12/main/pg_hba.conf \
     && echo "host all all 127.0.0.1/32 trust" >> /etc/postgresql/12/main/pg_hba.conf \
     && echo "host all all ::1/128 trust" >> /etc/postgresql/12/main/pg_hba.conf
