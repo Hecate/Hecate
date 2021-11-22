@@ -80,7 +80,7 @@ impl DbReplica {
         }
     }
 
-    pub async fn get(&self) -> Result<bb8::PooledConnection<'_, bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>, HecateError> {
+    pub async fn get(self) -> Result<bb8::PooledConnection<'static, bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>, HecateError> {
         match self.0 {
             None => Err(HecateError::new(503, String::from("No Database Replica Connection"), None)),
             Some(ref db_replica) => {
@@ -118,7 +118,7 @@ impl DbSandbox {
         }
     }
 
-    pub async fn get(&self) -> Result<bb8::PooledConnection<'_, bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>, HecateError> {
+    pub async fn get(self) -> Result<bb8::PooledConnection<'static, bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>, HecateError> {
         match self.0 {
             None => Err(HecateError::new(503, String::from("No Database Sandbox Connection"), None)),
             Some(ref db_sandbox) => {
@@ -141,7 +141,7 @@ impl DbReadWrite {
         DbReadWrite(database)
     }
 
-    pub async fn get(&self) -> Result<bb8::PooledConnection<'_, bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>, HecateError> {
+    pub async fn get(self) -> Result<bb8::PooledConnection<'static, bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>, HecateError> {
         match self.0.get().await {
             Ok(conn) => Ok(conn),
             Err(_) => Err(HecateError::new(503, String::from("Could not connect to database"), None))

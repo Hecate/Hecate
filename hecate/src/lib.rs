@@ -92,7 +92,7 @@ pub async fn start(
 
     HttpServer::new(move || {
         App::new()
-            .wrap(middleware::NormalizePath)
+            .wrap(middleware::normalize::NormalizePath)
             .wrap(middleware::Logger::default())
             .wrap(auth::middleware::EnforceAuth::new(db_replica.clone(), default.clone()))
             .wrap(middleware::Compress::default())
