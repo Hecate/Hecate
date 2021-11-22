@@ -2,7 +2,7 @@
 publish = false
 name = "hecate_derive"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 authors = ["ingalls <ingalls@protonmail.com>"]
 license = "MIT"
 description = "Custom Derivable traits used in Hecate Server"
