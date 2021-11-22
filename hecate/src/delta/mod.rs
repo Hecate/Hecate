@@ -1,8 +1,7 @@
-use postgres;
-use geo::prelude::*;
 use std::collections::HashMap;
 use crate::err::HecateError;
 use serde_json::Value;
+use geo_postgis::FromPostgis;
 
 pub struct Delta {
     pub id: Option<i64>,
@@ -27,7 +26,7 @@ impl Delta {
     ///
     /// Load and return a delta from the database given a connection and delta id
     ///
-    pub fn load(_conn: &impl postgres::GenericConnection, delta_id: i64) -> Self {
+    pub fn load(_conn: &mut tokio_postgres::Client, delta_id: i64) -> Self {
         Delta {
             id: Some(delta_id),
             uid: 1,
@@ -37,7 +36,7 @@ impl Delta {
     }
 }
 
-pub fn open(trans: &postgres::transaction::Transaction, props: &HashMap<String, Option<String>>, uid: i64) -> Result<i64, HecateError> {
+pub async fn open(trans: &mut tokio_postgres::Transaction<'_>, props: &HashMap<String, Option<String>>, uid: i64) -> Result<i64, HecateError> {
     match trans.query("
         INSERT INTO deltas (id, created, props, uid) VALUES (
             nextval('deltas_id_seq'),
@@ -45,14 +44,14 @@ pub fn open(trans: &postgres::transaction::Transaction, props: &HashMap<String, 
             to_json($1::HSTORE),
             $2
         ) RETURNING id;
-    ", &[&props, &uid]) {
+    ", &[&props, &uid]).await {
         Err(err) => Err(HecateError::from_db(err)),
-        Ok(res) => { Ok(res.get(0).get(0)) }
+        Ok(res) => { Ok(res.get(0).unwrap().get(0)) }
     }
 
 }
 
-pub fn create(trans: &postgres::transaction::Transaction, fc: &geojson::FeatureCollection, props: &HashMap<String, Option<String>>, uid: i64) -> Result<i64, HecateError> {
+pub async fn create(trans: &mut tokio_postgres::Transaction<'_>, fc: &geojson::FeatureCollection, props: &HashMap<String, Option<String>>, uid: i64) -> Result<i64, HecateError> {
     match trans.query("
         INSERT INTO deltas (id, created, uid, props, affected) VALUES (
             nextval('deltas_id_seq'),
@@ -62,13 +61,13 @@ pub fn create(trans: &postgres::transaction::Transaction, fc: &geojson::FeatureC
             to_json($3::HSTORE),
             $4
         ) RETURNING id;
-    ", &[&uid, &props, &affected(&fc)]) {
+    ", &[&uid, &props, &affected(&fc)]).await {
         Err(err) => Err(HecateError::from_db(err)),
-        Ok(res) => { Ok(res.get(0).get(0)) }
+        Ok(res) => { Ok(res.get(0).unwrap().get(0)) }
     }
 }
 
-pub fn list_by_date(conn: &impl postgres::GenericConnection, start: Option<chrono::NaiveDateTime>, end: Option<chrono::NaiveDateTime>, limit: Option<i64>) -> Result<serde_json::Value, HecateError> {
+pub async fn list_by_date(conn: &mut tokio_postgres::Client, start: Option<chrono::NaiveDateTime>, end: Option<chrono::NaiveDateTime>, limit: Option<i64>) -> Result<serde_json::Value, HecateError> {
     match conn.query("
         SELECT COALESCE(array_to_json(Array_Agg(djson.delta)), '[]')::JSON
         FROM (
@@ -103,16 +102,16 @@ pub fn list_by_date(conn: &impl postgres::GenericConnection, start: Option<chron
                 LIMIT $3
             ) d
         ) djson;
-    ", &[&start, &end, &limit]) {
+    ", &[&start, &end, &limit]).await {
         Err(err) => Err(HecateError::from_db(err)),
         Ok(res) => {
-            let d_json: serde_json::Value = res.get(0).get(0);
+            let d_json: serde_json::Value = res.get(0).unwrap().get(0);
             Ok(d_json)
         }
     }
 }
 
-pub fn list_by_offset(conn: &impl postgres::GenericConnection, offset: Option<i64>, limit: Option<i64>) -> Result<serde_json::Value, HecateError> {
+pub async fn list_by_offset(conn: &mut tokio_postgres::Client, offset: Option<i64>, limit: Option<i64>) -> Result<serde_json::Value, HecateError> {
     let offset = match offset {
         None => String::from("Infinity"),
         Some(offset) => offset.to_string()
@@ -150,16 +149,16 @@ pub fn list_by_offset(conn: &impl postgres::GenericConnection, offset: Option<i6
                 LIMIT $2
             ) d
         ) djson;
-    ", &[&offset, &limit]) {
+    ", &[&offset, &limit]).await {
         Err(err) => Err(HecateError::from_db(err)),
         Ok(res) => {
-            let d_json: serde_json::Value = res.get(0).get(0);
+            let d_json: serde_json::Value = res.get(0).unwrap().get(0);
             Ok(d_json)
         }
     }
 }
 
-pub fn tiles(conn: &impl postgres::GenericConnection, id: i64, min_zoom: u8, max_zoom: u8) -> Result<Vec<(i32, i32, u8)>, HecateError> {
+pub async fn tiles(conn: &mut tokio_postgres::Client, id: i64, min_zoom: u8, max_zoom: u8) -> Result<Vec<(i32, i32, u8)>, HecateError> {
     match conn.query("
         SELECT
             geom
@@ -167,7 +166,7 @@ pub fn tiles(conn: &impl postgres::GenericConnection, id: i64, min_zoom: u8, max
             geo_history
         WHERE
             delta = $1
-    ", &[&id]) {
+    ", &[&id]).await {
         Err(err) => Err(HecateError::from_db(err)),
         Ok(results) => {
             if results.is_empty() {
@@ -177,25 +176,20 @@ pub fn tiles(conn: &impl postgres::GenericConnection, id: i64, min_zoom: u8, max
             let mut tiles: HashMap<(i32, i32, u8), bool> = HashMap::new();
 
             for res in results.iter() {
-                let geom: Option<postgis::ewkb::GeometryT<postgis::ewkb::Point>> = res.get(0);
+                let geom: postgis::ewkb::GeometryT<postgis::ewkb::Point> = res.get(0);
+                let geom: Option<geo::Geometry<f64>> = Option::from_postgis(&geom);
+                let geom = geom.unwrap();
 
-                let geom: Option<geo::Geometry<f64>> = match geom {
-                    Some(geom) => FromPostgis::from_postgis(&geom),
-                    None => continue
-                };
-
-                if let Some(geom) = geom {
-                    for zoom in min_zoom..=max_zoom {
-                        let geomtiles = match tilecover::tiles(&geom, zoom) {
-                            Ok(gt) => gt,
-                            Err(_err) => {
-                                return Err(HecateError::new(500, String::from("Could not generate tilecover"), None));
-                            }
-                        };
-
-                        for geomtile in geomtiles {
-                            tiles.insert(geomtile, true);
+                for zoom in min_zoom..=max_zoom {
+                    let geomtiles = match tilecover::tiles(&geom, zoom) {
+                        Ok(gt) => gt,
+                        Err(_err) => {
+                            return Err(HecateError::new(500, String::from("Could not generate tilecover"), None));
                         }
+                    };
+
+                    for geomtile in geomtiles {
+                        tiles.insert(geomtile, true);
                     }
                 }
             }
@@ -206,7 +200,7 @@ pub fn tiles(conn: &impl postgres::GenericConnection, id: i64, min_zoom: u8, max
 
 }
 
-pub fn get_json(conn: &impl postgres::GenericConnection, id: i64) -> Result<serde_json::Value, HecateError> {
+pub async fn get_json(conn: &mut tokio_postgres::Client, id: i64) -> Result<serde_json::Value, HecateError> {
     match conn.query("
         SELECT COALESCE(row_to_json(t), 'false'::JSON)
         FROM (
@@ -247,16 +241,16 @@ pub fn get_json(conn: &impl postgres::GenericConnection, id: i64) -> Result<serd
                 deltas.id = $1
                 AND deltas.uid = users.id
         ) t
-    ", &[&id]) {
+    ", &[&id]).await {
         Err(err) => Err(HecateError::from_db(err)),
         Ok(res) => {
-            let d_json: serde_json::Value = res.get(0).get(0);
+            let d_json: serde_json::Value = res.get(0).unwrap().get(0);
             Ok(d_json)
         }
     }
 }
 
-pub fn modify_props(id: i64, trans: &postgres::transaction::Transaction, props: &HashMap<String, Option<String>>, uid: i64) -> Result<i64, HecateError> {
+pub async fn modify_props(id: i64, trans: &mut tokio_postgres::Transaction<'_>, props: &HashMap<String, Option<String>>, uid: i64) -> Result<i64, HecateError> {
     match trans.query("
         UPDATE deltas
             SET
@@ -265,13 +259,13 @@ pub fn modify_props(id: i64, trans: &postgres::transaction::Transaction, props: 
                 id = $1
                 AND uid = $2
                 AND finalized = false;
-    ", &[&id, &uid, &props]) {
+    ", &[&id, &uid, &props]).await {
         Err(err) => Err(HecateError::from_db(err)),
         _ => Ok(id)
     }
 }
 
-pub fn modify(id: i64, trans: &postgres::transaction::Transaction, fc: &geojson::FeatureCollection, uid: i64) -> Result<i64, HecateError> {
+pub async fn modify(id: i64, trans: &mut tokio_postgres::Transaction<'_>, fc: &geojson::FeatureCollection, uid: i64) -> Result<i64, HecateError> {
     match trans.query("
         UPDATE deltas
             SET
@@ -280,31 +274,31 @@ pub fn modify(id: i64, trans: &postgres::transaction::Transaction, fc: &geojson:
                 id = $1
                 AND uid = $2
                 AND finalized = false;
-    ", &[&id, &uid, &affected(&fc)]) {
+    ", &[&id, &uid, &affected(&fc)]).await {
         Err(err) => Err(HecateError::from_db(err)),
         _ => Ok(id)
     }
 }
 
-pub fn finalize(id: i64, trans: &postgres::transaction::Transaction) -> Result<i64, HecateError> {
+pub async fn finalize(id: i64, trans: &mut tokio_postgres::Transaction<'_>) -> Result<i64, HecateError> {
     match trans.query("
         UPDATE deltas
             SET finalized = true
             WHERE id = $1
-    ", &[&id]) {
+    ", &[&id]).await {
         Err(err) => Err(HecateError::from_db(err)),
         _ => Ok(id)
     }
 }
 
-pub fn is_open(id: i64, trans: &postgres::transaction::Transaction) -> Result<bool, HecateError> {
+pub async fn is_open(id: i64, trans: &mut tokio_postgres::Transaction<'_>) -> Result<bool, HecateError> {
     match trans.query("
         SELECT NOT finalized FROM deltas WHERE id = $1
-    ", &[&id]) {
+    ", &[&id]).await {
         Err(err) => Err(HecateError::from_db(err)),
         Ok(row) => {
             if row.is_empty() { return Ok(false); }
-            Ok(row.get(0).get(0))
+            Ok(row.get(0).unwrap().get(0))
         }
     }
 }

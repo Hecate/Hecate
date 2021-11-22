@@ -1,6 +1,6 @@
 use crate::err::HecateError;
 
-pub fn get_json(conn: &impl postgres::GenericConnection) -> Result<serde_json::Value, HecateError> {
+pub async fn get_json(conn: &mut tokio_postgres::Client) -> Result<serde_json::Value, HecateError> {
     match conn.query("
         SELECT COALESCE(row_to_json(d), 'false'::JSON)
         FROM (
@@ -35,19 +35,19 @@ pub fn get_json(conn: &impl postgres::GenericConnection) -> Result<serde_json::V
                         oid = 'public.geo'::regclass
                 ) as total
         ) d;
-    ", &[]) {
+    ", &[]).await {
         Err(err) => Err(HecateError::from_db(err)),
         Ok(res) => {
-            let d_json: serde_json::Value = res.get(0).get(0);
+            let d_json: serde_json::Value = res.get(0).unwrap().get(0);
             Ok(d_json)
         }
     }
 }
 
-pub fn regen(conn: &impl postgres::GenericConnection) -> Result<bool, HecateError> {
+pub async fn regen(conn: &mut tokio_postgres::Client) -> Result<bool, HecateError> {
     match conn.execute("
         ANALYZE geo;
-    ", &[]) {
+    ", &[]).await {
         Err(err) => Err(HecateError::from_db(err)),
         _ => Ok(true)
     }

@@ -76,9 +76,7 @@ pub async fn start(
 
     let auth_rules = auth::AuthContainer(auth_rules);
 
-    let db_replica = DbReplica::new(Some(database.replica.iter().map(|db| db::init_pool(&db)).collect()));
-    let db_sandbox = DbSandbox::new(Some(database.sandbox.iter().map(|db| db::init_pool(&db)).collect()));
-    let db_main = DbReadWrite::new(init_pool(&database.main));
+    let (db_replica, db_sandbox, db_main) = database.explode().await;
 
     let worker = worker::Worker::new(database.main);
 
@@ -94,7 +92,7 @@ pub async fn start(
 
     HttpServer::new(move || {
         App::new()
-            .wrap(middleware::NormalizePath)
+            .wrap(middleware::normalize::NormalizePath)
             .wrap(middleware::Logger::default())
             .wrap(auth::middleware::EnforceAuth::new(db_replica.clone(), default.clone()))
             .wrap(middleware::Compress::default())
@@ -299,7 +297,8 @@ pub async fn start(
         .bind(format!("0.0.0.0:{}", port.unwrap_or(8000)).as_str())
         .unwrap()
         .run()
-        .await;
+        .await
+        .unwrap();
 }
 
 #[derive(Deserialize, Debug)]
@@ -369,16 +368,11 @@ async fn meta_list(
     conn: web::Data<DbReplica>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>
-) -> Result<HttpResponse, HecateError> {
-    let meta = web::block(move || {
-        auth::check(&auth_rules.0.meta.get, auth::RW::Read, &auth)?;
+) -> Result<Json<serde_json::Value>, HecateError> {
+    auth::check(&auth_rules.0.meta.get, auth::RW::Read, &auth)?;
 
-        Ok(serde_json::to_value(meta::list(&*conn.get()?)?).unwrap())
-    }).await?;
-
-    Ok(HttpResponse::Ok()
-       .content_type("application/json")
-       .body(meta))
+    let mut conn = conn.get().await?;
+    Ok(Json(serde_json::to_value(meta::list(&mut *conn).await?).unwrap()))
 }
 
 
@@ -386,22 +380,13 @@ async fn meta_get(
     conn: web::Data<DbReplica>,
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>,
-    worker: web::Data<worker::Worker>,
     key: web::Path<String>
-) -> Result<HttpResponse, HecateError> {
-    let meta = web::block(move || {
-        auth::check(&auth_rules.0.meta.get, auth::RW::Read, &auth)?;
+) -> Result<Json<serde_json::Value>, HecateError> {
+    auth::check(&auth_rules.0.meta.get, auth::RW::Read, &auth)?;
 
-        worker.queue(worker::Task::new(worker::TaskType::Meta));
-
-        Ok(meta::Meta::get(&*conn.get()?, &key.into_inner())?.value)
-    }).await?;
-
-    Ok(HttpResponse::Ok()
-       .content_type("application/json")
-       .body(meta))
+    let mut conn = conn.get().await?;
+    Ok(Json(meta::Meta::get(&mut *conn, &key.into_inner()).await?.value))
 }
-
 
 async fn meta_delete(
     conn: web::Data<DbReadWrite>,
@@ -409,18 +394,13 @@ async fn meta_delete(
     auth_rules: web::Data<auth::AuthContainer>,
     worker: web::Data<worker::Worker>,
     key: web::Path<String>
-) -> Result<HttpResponse, HecateError> {
-    let meta = web::block(move || {
-        auth::check(&auth_rules.0.meta.set, auth::RW::Full, &auth)?;
+) -> Result<Json<serde_json::Value>, HecateError> {
+    auth::check(&auth_rules.0.meta.set, auth::RW::Full, &auth)?;
 
-        worker.queue(worker::Task::new(worker::TaskType::Meta));
+    let mut conn = conn.get().await?;
+    worker.queue(worker::Task::new(worker::TaskType::Meta));
 
-        Ok(json!(meta::Meta::delete(&*conn.get()?, &key.into_inner())?))
-    }).await?;
-
-    Ok(HttpResponse::Ok()
-       .content_type("application/json")
-       .body(meta))
+    Ok(Json(json!(meta::Meta::delete(&mut *conn, &key.into_inner()).await?)))
 }
 
 async fn meta_set(
@@ -430,20 +410,15 @@ async fn meta_set(
     worker: web::Data<worker::Worker>,
     value: Json<serde_json::Value>,
     key: web::Path<String>
-) -> Result<HttpResponse, HecateError> {
-    let meta = web::block(move || {
-        auth::check(&auth_rules.0.meta.set, auth::RW::Full, &auth)?;
+) -> Result<Json<serde_json::Value>, HecateError> {
+    auth::check(&auth_rules.0.meta.set, auth::RW::Full, &auth)?;
 
-        worker.queue(worker::Task::new(worker::TaskType::Meta));
+    let mut conn = conn.get().await?;
+    worker.queue(worker::Task::new(worker::TaskType::Meta));
 
-        let meta = meta::Meta::new(key.into_inner(), value.into_inner());
+    let meta = meta::Meta::new(key.into_inner(), value.into_inner());
 
-        Ok(json!(meta.set(&*conn.get()?)?))
-    }).await?;
-
-    Ok(HttpResponse::Ok()
-       .content_type("application/json")
-       .body(meta))
+    Ok(Json(json!(meta.set(&mut *conn).await?)))
 }
 
 async fn mvt_get(
@@ -453,17 +428,17 @@ async fn mvt_get(
     auth_rules: web::Data<auth::AuthContainer>,
     path: web::Path<(u8, u32, u32)>
 ) -> Result<HttpResponse, HecateError> {
-    let tile = web::block(move || {
-        auth::check(&auth_rules.0.mvt.get, auth::RW::Read, &auth)?;
+    auth::check(&auth_rules.0.mvt.get, auth::RW::Read, &auth)?;
 
-        let z = path.0;
-        let x = path.1;
-        let y = path.2;
+    let mut conn_read = conn_read.get().await?;
+    let mut conn_write = conn_write.get().await?;
+    let z = path.0;
+    let x = path.1;
+    let y = path.2;
 
-        if z > 17 { return Err(HecateError::new(404, String::from("Tile Not Found"), None)); }
+    if z > 17 { return Err(HecateError::new(404, String::from("Tile Not Found"), None)); }
 
-        Ok(mvt::get(&*conn_read.get()?, &*conn_write.get()?, z, x, y, false)?)
-    }).await?;
+    let tile = mvt::get(&mut *conn_read, &mut *conn_write, z, x, y, false).await?;
 
     Ok(HttpResponse::build(actix_web::http::StatusCode::OK)
         .content_type("application/x-protobuf")
@@ -477,17 +452,16 @@ async fn mvt_meta(
     auth_rules: web::Data<auth::AuthContainer>,
     path: web::Path<(u8, u32, u32)>
 ) -> Result<HttpResponse, HecateError> {
-    let meta = web::block(move || {
-        auth::check(&auth_rules.0.mvt.meta, auth::RW::Read, &auth)?;
+    auth::check(&auth_rules.0.mvt.meta, auth::RW::Read, &auth)?;
 
-        let z = path.0;
-        let x = path.1;
-        let y = path.2;
+    let mut conn = conn.get().await?;
+    let z = path.0;
+    let x = path.1;
+    let y = path.2;
 
-        if z > 17 { return Err(HecateError::new(404, String::from("Tile Not Found"), None)); }
+    if z > 17 { return Err(HecateError::new(404, String::from("Tile Not Found"), None)); }
 
-        Ok(mvt::meta(&*conn.get()?, z, x, y)?)
-    }).await?;
+    let meta = mvt::meta(&mut *conn, z, x, y).await?;
 
     Ok(HttpResponse::Ok()
        .content_type("application/json")
@@ -499,11 +473,10 @@ async fn mvt_wipe(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>
 ) -> Result<HttpResponse, HecateError> {
-    let meta = web::block(move || {
-        auth::check(&auth_rules.0.mvt.delete, auth::RW::Full, &auth)?;
+    auth::check(&auth_rules.0.mvt.delete, auth::RW::Full, &auth)?;
 
-        Ok(mvt::wipe(&*conn.get()?)?)
-    }).await?;
+    let mut conn = conn.get().await?;
+    let meta = mvt::wipe(&mut *conn).await?;
 
     Ok(HttpResponse::Ok()
        .content_type("application/json")
@@ -517,17 +490,17 @@ async fn mvt_regen(
     auth_rules: web::Data<auth::AuthContainer>,
     path: web::Path<(u8, u32, u32)>
 ) -> Result<HttpResponse, HecateError> {
-    let tile = web::block(move || {
-        auth::check(&auth_rules.0.mvt.regen, auth::RW::Full, &auth)?;
+    auth::check(&auth_rules.0.mvt.regen, auth::RW::Full, &auth)?;
 
-        let z = path.0;
-        let x = path.1;
-        let y = path.2;
+    let mut conn_write = conn_write.get().await?;
+    let mut conn_read = conn_read.get().await?;
+    let z = path.0;
+    let x = path.1;
+    let y = path.2;
 
-        if z > 17 { return Err(HecateError::new(404, String::from("Tile Not Found"), None)); }
+    if z > 17 { return Err(HecateError::new(404, String::from("Tile Not Found"), None)); }
 
-        Ok(mvt::get(&*conn_read.get()?, &*conn_write.get()?, z, x, y, true)?)
-    }).await?;
+    let tile = mvt::get(&mut *conn_read, &mut conn_write, z, x, y, true).await?;
 
     Ok(HttpResponse::build(actix_web::http::StatusCode::OK)
         .content_type("application/x-protobuf")
@@ -542,19 +515,16 @@ async fn user_create(
     worker: web::Data<worker::Worker>,
     user: web::Query<user::User>
 ) -> Result<HttpResponse, HecateError> {
-    let user = web::block(move || {
-        auth::check(&auth_rules.0.user.create, auth::RW::Full, &auth)?;
+    auth::check(&auth_rules.0.user.create, auth::RW::Full, &auth)?;
 
-        user.set(&*conn.get()?)?;
+    let mut conn = conn.get().await?;
+    user.set(&mut *conn).await?;
 
-        worker.queue(worker::Task::new(worker::TaskType::User(user.username.clone())));
-
-        Ok(json!(true))
-    }).await?;
+    worker.queue(worker::Task::new(worker::TaskType::User(user.username.clone())));
 
     Ok(HttpResponse::Ok()
        .content_type("application/json")
-       .body(user))
+       .body(json!(true)))
 }
 
 async fn users(
@@ -563,16 +533,15 @@ async fn users(
     auth_rules: web::Data<auth::AuthContainer>,
     filter: web::Query<Filter>
 ) -> Result<HttpResponse, HecateError> {
-    let users = web::block(move || {
-        auth::check(&auth_rules.0.user.list, auth::RW::Read, &auth)?;
+    auth::check(&auth_rules.0.user.list, auth::RW::Read, &auth)?;
 
-        let filter = filter.into_inner();
+    let mut conn = conn.get().await?;
+    let filter = filter.into_inner();
 
-        match &filter.filter {
-            Some(search) => Ok(json!(user::filter(&*conn.get()?, &search, filter.limit)?)),
-            None => Ok(user::list(&*conn.get()?, filter.limit)?)
-        }
-    }).await?;
+    let users = match &filter.filter {
+        Some(search) => json!(user::filter(&mut *conn, &search, filter.limit).await?),
+        None => user::list(&mut *conn, filter.limit).await?
+    };
 
     Ok(HttpResponse::Ok()
        .content_type("application/json")
@@ -585,13 +554,11 @@ async fn user_info(
     auth_rules: web::Data<auth::AuthContainer>,
     uid: web::Path<i64>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(Json(web::block(move || {
-        auth_rules.0.is_admin(&auth)?;
+    auth_rules.0.is_admin(&auth)?;
 
-        let user = user::User::get(&*conn.get()?, *uid)?.to_value();
+    let mut conn = conn.get().await?;
+    Ok(Json(user::User::get(&mut *conn, *uid).await?.to_value()))
 
-        Ok(user)
-    }).await?))
 }
 
 async fn user_modify_info(
@@ -625,7 +592,7 @@ async fn user_modify_info(
 
     Ok(HttpResponse::Ok()
        .content_type("application/json")
-       .body(json!(user.set(&*conn.get()?)?)))
+       .body(json!(user.set(&mut *conn.get().await?).await?)))
 }
 
 async fn user_set_admin(
@@ -634,22 +601,18 @@ async fn user_set_admin(
     auth_rules: web::Data<auth::AuthContainer>,
     uid: web::Path<i64>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(Json(web::block(move || {
-        auth_rules.0.is_admin(&auth)?;
+    auth_rules.0.is_admin(&auth)?;
 
-        let conn = conn.get()?;
+    let mut conn = conn.get().await?;
+    let mut user = user::User::get(&mut *conn, *uid).await?;
 
-        let mut user = user::User::get(&*conn, *uid)?;
+    if user.is_admin() {
+        return Err(HecateError::new(400, format!("{} is already an admin", user.username), None));
+    }
 
-        if user.is_admin() {
-            return Err(HecateError::new(400, format!("{} is already an admin", user.username), None));
-        }
-
-        user.admin(true);
-        user.set(&*conn)?;
-
-        Ok(json!(true))
-    }).await?))
+    user.admin(true);
+    user.set(&mut *conn).await?;
+    Ok(Json(json!(true)))
 }
 
 async fn user_delete_admin(
@@ -658,22 +621,19 @@ async fn user_delete_admin(
     auth_rules: web::Data<auth::AuthContainer>,
     uid: web::Path<i64>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(web::block(move || {
-        auth_rules.0.is_admin(&auth)?;
+    auth_rules.0.is_admin(&auth)?;
 
-        let conn = conn.get()?;
+    let mut conn = conn.get().await?;
+    let mut user = user::User::get(&mut *conn, *uid).await?;
 
-        let mut user = user::User::get(&*conn, *uid)?;
+    if !user.is_admin() {
+        return Err(HecateError::new(400, format!("{} is not an admin", user.username), None));
+    }
 
-        if !user.is_admin() {
-            return Err(HecateError::new(400, format!("{} is not an admin", user.username), None));
-        }
+    user.admin(false);
+    user.set(&mut *conn).await?;
 
-        user.admin(false);
-        user.set(&*conn)?;
-
-        Ok(Json(json!(true)))
-    }).await?)
+    Ok(Json(json!(true)))
 }
 
 async fn user_self(
@@ -681,18 +641,17 @@ async fn user_self(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(Json(web::block(move || {
-        auth::check(&auth_rules.0.user.info, auth::RW::Read, &auth)?;
+    auth::check(&auth_rules.0.user.info, auth::RW::Read, &auth)?;
 
-        let uid = match auth.uid {
-            Some(uid) => uid,
-            None => { return Err(HecateError::generic(401)); }
-        };
+    let mut conn = conn.get().await?;
+    let uid = match auth.uid {
+        Some(uid) => uid,
+        None => { return Err(HecateError::generic(401)); }
+    };
 
-        let user = user::User::get(&*conn.get()?, uid)?.to_value();
+    let user = user::User::get(&mut *conn, uid).await?.to_value();
 
-        Ok(user)
-    }).await?))
+    Ok(Json(user))
 }
 
 async fn user_pwreset(
@@ -700,18 +659,18 @@ async fn user_pwreset(
     auth: auth::Auth,
     reset: Json<PwReset>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(Json(web::block(move || {
-        // No auth rules here - user can always change their password
 
-        let uid = match auth.uid {
-            Some(uid) => uid,
-            None => { return Err(HecateError::generic(401)); }
-        };
+    // No auth rules here - user can always change their password
+    let mut conn = conn.get().await?;
 
-        user::User::reset(&*conn.get()?, uid, &reset.current, &reset.update)?;
+    let uid = match auth.uid {
+        Some(uid) => uid,
+        None => { return Err(HecateError::generic(401)); }
+    };
 
-        Ok(json!(true))
-    }).await?))
+    user::User::reset(&mut *conn, uid, &reset.current, &reset.update).await?;
+
+    Ok(Json(json!(true)))
 }
 
 async fn user_create_session(
@@ -719,13 +678,12 @@ async fn user_create_session(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>
 ) -> Result<HttpResponse, HecateError> {
-    let token = web::block(move || {
-        auth::check(&auth_rules.0.user.create_session, auth::RW::Full, &auth)?;
+    auth::check(&auth_rules.0.user.create_session, auth::RW::Full, &auth)?;
 
-        let uid = auth.uid.unwrap();
+    let mut conn = conn.get().await?;
+    let uid = auth.uid.unwrap();
 
-        Ok(user::Token::create(&*conn.get()?, "Session Token", uid, Some(HOURS), user::token::Scope::Full)?)
-    }).await?;
+    let token = user::Token::create(&mut *conn, "Session Token", uid, Some(HOURS), user::token::Scope::Full).await?;
 
     let cookie = actix_http::http::Cookie::build("session", token.token()?)
         .path("/")
@@ -749,19 +707,19 @@ async fn user_delete_session(
         None => None
     };
 
-    web::block(move || {
-        // there is no auth check here for deleting tokens, the web interface should
-        // always be able to de-authenticate to prevent errors
-        match token {
-            Some(token) => match auth.uid {
-                Some(uid) => match user::token::destroy(&*conn.get()?, uid, &token) {
-                    _ => Ok(true)
-                },
-                None => Ok(true)
+    // there is no auth check here for deleting tokens, the web interface should
+    // always be able to de-authenticate to prevent errors
+    let mut conn = conn.get().await?;
+
+    match token {
+        Some(token) => match auth.uid {
+            Some(uid) => match user::token::destroy(&mut *conn, uid, &token).await {
+                _ => true
             },
-            None => Ok(true)
-        }
-    }).await?;
+            None => true
+        },
+        None => true
+    };
 
     let cookie = actix_http::http::Cookie::build("session", String::from(""))
         .path("/")
@@ -779,21 +737,20 @@ async fn user_tokens(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(web::block(move || {
-        auth::check(&auth_rules.0.user.info, auth::RW::Read, &auth)?;
+    auth::check(&auth_rules.0.user.info, auth::RW::Read, &auth)?;
 
-        let uid = match auth.uid {
-            Some(uid) => uid,
-            None => { return Err(HecateError::generic(401)); }
-        };
+    let mut conn = conn.get().await?;
+    let uid = match auth.uid {
+        Some(uid) => uid,
+        None => { return Err(HecateError::generic(401)); }
+    };
 
-        let tokens = user::token::list(&*conn.get()?, uid)?;
+    let tokens = user::token::list(&mut *conn, uid).await?;
 
-        match serde_json::to_value(tokens) {
-            Ok(tokens) => Ok(Json(tokens)),
-            Err(_) => Err(HecateError::new(500, String::from("Internal Server Error"), None))
-        }
-    }).await?)
+    match serde_json::to_value(tokens) {
+        Ok(tokens) => Ok(Json(tokens)),
+        Err(_) => Err(HecateError::new(500, String::from("Internal Server Error"), None))
+    }
 }
 
 async fn user_token(
@@ -802,21 +759,20 @@ async fn user_token(
     auth_rules: web::Data<auth::AuthContainer>,
     token: web::Path<String>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(web::block(move || {
-        auth::check(&auth_rules.0.user.info, auth::RW::Read, &auth)?;
+    auth::check(&auth_rules.0.user.info, auth::RW::Read, &auth)?;
 
-        let uid = match auth.uid {
-            Some(uid) => uid,
-            None => { return Err(HecateError::generic(401)); }
-        };
+    let mut conn = conn.get().await?;
+    let uid = match auth.uid {
+        Some(uid) => uid,
+        None => { return Err(HecateError::generic(401)); }
+    };
 
-        let token = user::Token::get(&*conn.get()?, uid, &token.into_inner())?;
+    let token = user::Token::get(&mut *conn, uid, &token.into_inner()).await?;
 
-        match serde_json::to_value(token) {
-            Ok(token) => Ok(Json(token)),
-            Err(_) => Err(HecateError::new(500, String::from("Internal Server Error"), None))
-        }
-    }).await?)
+    match serde_json::to_value(token) {
+        Ok(token) => Ok(Json(token)),
+        Err(_) => Err(HecateError::new(500, String::from("Internal Server Error"), None))
+    }
 }
 
 async fn user_token_create(
@@ -859,12 +815,12 @@ async fn user_token_create(
     };
 
     let token = user::Token::create(
-        &*conn.get()?,
+        &mut *conn.get().await?,
         token.name.unwrap_or_else(|| String::from("Access Token")),
         uid,
         token.hours,
         scope
-    )?;
+    ).await?;
 
     match serde_json::to_value(token) {
         Ok(token) => Ok(Json(token)),
@@ -884,7 +840,7 @@ async fn user_token_delete(
 
     let token = token.into_inner();
 
-    user::token::destroy(&*conn.get()?, uid, &token)?;
+    user::token::destroy(&mut *conn.get().await?, uid, &token).await?;
 
     Ok(Json(json!(true)))
 }
@@ -896,8 +852,6 @@ async fn style_create(
     worker: web::Data<worker::Worker>,
     mut body: web::Payload
 ) -> Result<Json<serde_json::Value>,HecateError> {
-    let conn = conn.get()?;
-
     auth::check(&auth_rules.0.style.create, auth::RW::Full, &auth)?;
 
     let uid = auth.uid.unwrap();
@@ -912,7 +866,7 @@ async fn style_create(
         Err(err) => { return Err(HecateError::new(400, String::from("Invalid UTF8 Body"), Some(err.to_string()))); }
     };
 
-    let style_id = style::create(&*conn, uid, &body)?;
+    let style_id = style::create(&mut *conn.get().await?, uid, &body).await?;
     worker.queue(worker::Task::new(worker::TaskType::Style(style_id)));
 
     Ok(Json(json!(style_id)))
@@ -929,7 +883,7 @@ async fn style_public(
 
     let style_id = style_id.into_inner();
 
-    Ok(Json(json!(style::access(&*conn.get()?, uid, style_id, true)?)))
+    Ok(Json(json!(style::access(&mut *conn.get().await?, uid, style_id, true).await?)))
 }
 
 async fn style_private(
@@ -943,7 +897,7 @@ async fn style_private(
 
     let style_id = style_id.into_inner();
 
-    Ok(Json(json!(style::access(&*conn.get()?, uid, style_id, false)?)))
+    Ok(Json(json!(style::access(&mut *conn.get().await?, uid, style_id, false).await?)))
 }
 
 async fn style_patch(
@@ -954,7 +908,7 @@ async fn style_patch(
     style_id: web::Path<i64>,
     mut body: web::Payload
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    let conn = conn.get()?;
+    let mut conn = conn.get().await?;
     let style_id = style_id.into_inner();
 
     auth::check(&auth_rules.0.style.patch, auth::RW::Full, &auth)?;
@@ -973,7 +927,7 @@ async fn style_patch(
 
     worker.queue(worker::Task::new(worker::TaskType::Style(style_id)));
 
-    Ok(Json(json!(style::update(&*conn, uid, style_id, &body)?)))
+    Ok(Json(json!(style::update(&mut *conn, uid, style_id, &body).await?)))
 }
 
 async fn style_delete(
@@ -989,7 +943,7 @@ async fn style_delete(
     let style_id = style_id.into_inner();
     worker.queue(worker::Task::new(worker::TaskType::Style(style_id)));
 
-    Ok(Json(json!(style::delete(&*conn.get()?, uid, style_id)?)))
+    Ok(Json(json!(style::delete(&mut *conn.get().await?, uid, style_id).await?)))
 }
 
 
@@ -1003,7 +957,7 @@ async fn style_get(
 
     let style_id = style_id.into_inner();
 
-    Ok(Json(json!(style::get(&*conn.get()?, &auth.uid, style_id)?)))
+    Ok(Json(json!(style::get(&mut *conn.get().await?, &auth.uid, style_id).await?)))
 }
 
 async fn style_list_public(
@@ -1013,7 +967,7 @@ async fn style_list_public(
 ) -> Result<Json<serde_json::Value>, HecateError> {
     auth::check(&auth_rules.0.style.list, auth::RW::Read, &auth)?;
 
-    Ok(Json(json!(style::list_public(&*conn.get()?)?)))
+    Ok(Json(json!(style::list_public(&mut *conn.get().await?).await?)))
 }
 
 async fn style_list_user(
@@ -1029,13 +983,13 @@ async fn style_list_user(
     match auth.uid {
         Some(uid) => {
             if uid == user_id {
-                Ok(Json(json!(style::list_user(&*conn.get()?, user_id)?)))
+                Ok(Json(json!(style::list_user(&mut *conn.get().await?, user_id).await?)))
             } else {
-                Ok(Json(json!(style::list_user_public(&*conn.get()?, user_id)?)))
+                Ok(Json(json!(style::list_user_public(&mut *conn.get().await?, user_id).await?)))
             }
         },
         _ => {
-            Ok(Json(json!(style::list_user_public(&*conn.get()?, user_id)?)))
+            Ok(Json(json!(style::list_user_public(&mut *conn.get().await?, user_id).await?)))
         }
     }
 }
@@ -1046,41 +1000,40 @@ async fn delta_list(
     auth_rules: web::Data<auth::AuthContainer>,
     opts: web::Query<DeltaList>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(Json(web::block(move || {
-        auth::check(&auth_rules.0.delta.list, auth::RW::Read, &auth)?;
+    auth::check(&auth_rules.0.delta.list, auth::RW::Read, &auth)?;
 
-        if opts.offset.is_none() && opts.limit.is_none() && opts.start.is_none() && opts.end.is_none() {
-            Ok(delta::list_by_offset(&*conn.get()?, None, None)?)
-        } else if opts.offset.is_some() && (opts.start.is_some() || opts.end.is_some()) {
-            Err(HecateError::new(400, String::from("Offset cannot be used with start or end"), None))
-        } else if opts.start.is_some() || opts.end.is_some() {
-            let start: Option<chrono::NaiveDateTime> = match &opts.start {
-                None => None,
-                Some(start) => {
-                    match start.parse() {
-                        Err(_) => { return Err(HecateError::new(400, String::from("Invalid Start Timestamp"), None)); },
-                        Ok(start) => Some(start)
-                    }
+    let mut conn = conn.get().await?;
+    if opts.offset.is_none() && opts.limit.is_none() && opts.start.is_none() && opts.end.is_none() {
+        Ok(Json(delta::list_by_offset(&mut *conn, None, None).await?))
+    } else if opts.offset.is_some() && (opts.start.is_some() || opts.end.is_some()) {
+        Err(HecateError::new(400, String::from("Offset cannot be used with start or end"), None))
+    } else if opts.start.is_some() || opts.end.is_some() {
+        let start: Option<chrono::NaiveDateTime> = match &opts.start {
+            None => None,
+            Some(start) => {
+                match start.parse() {
+                    Err(_) => { return Err(HecateError::new(400, String::from("Invalid Start Timestamp"), None)); },
+                    Ok(start) => Some(start)
                 }
-            };
+            }
+        };
 
-            let end: Option<chrono::NaiveDateTime> = match &opts.end {
-                None => None,
-                Some(end) => {
-                    match end.parse() {
-                        Err(_) => { return Err(HecateError::new(400, String::from("Invalid end Timestamp"), None)); },
-                        Ok(end) => Some(end)
-                    }
+        let end: Option<chrono::NaiveDateTime> = match &opts.end {
+            None => None,
+            Some(end) => {
+                match end.parse() {
+                    Err(_) => { return Err(HecateError::new(400, String::from("Invalid end Timestamp"), None)); },
+                    Ok(end) => Some(end)
                 }
-            };
+            }
+        };
 
-            Ok(delta::list_by_date(&*conn.get()?, start, end, opts.limit)?)
-        } else if opts.offset.is_some() || opts.limit.is_some() {
-            Ok(delta::list_by_offset(&*conn.get()?, opts.offset, opts.limit)?)
-        } else {
-            Err(HecateError::new(400, String::from("Invalid Query Params"), None))
-        }
-    }).await?))
+        Ok(Json(delta::list_by_date(&mut *conn, start, end, opts.limit).await?))
+    } else if opts.offset.is_some() || opts.limit.is_some() {
+        Ok(Json(delta::list_by_offset(&mut *conn, opts.offset, opts.limit).await?))
+    } else {
+        Err(HecateError::new(400, String::from("Invalid Query Params"), None))
+    }
 }
 
 async fn delta(
@@ -1089,11 +1042,10 @@ async fn delta(
     auth_rules: web::Data<auth::AuthContainer>,
     id: web::Path<i64>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(Json(web::block(move || {
-        auth::check(&auth_rules.0.delta.get, auth::RW::Read, &auth)?;
+    auth::check(&auth_rules.0.delta.get, auth::RW::Read, &auth)?;
 
-        Ok(delta::get_json(&*conn.get()?, id.into_inner())?)
-    }).await?))
+    let mut conn = conn.get().await?;
+    Ok(Json(delta::get_json(&mut *conn, id.into_inner()).await?))
 }
 
 async fn bounds(
@@ -1103,15 +1055,14 @@ async fn bounds(
     auth_rules: web::Data<auth::AuthContainer>,
     filter: web::Query<Filter>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(Json(web::block(move || {
-        auth::check(&auth_rules.0.bounds.list, auth::RW::Read, &auth)?;
+    auth::check(&auth_rules.0.bounds.list, auth::RW::Read, &auth)?;
 
-        let filter = filter.into_inner();
-        match filter.filter {
-            Some(search) => Ok(json!(bounds::filter(&*conn.get()?, &search, filter.limit)?)),
-            None => Ok(json!(bounds::list(&*conn.get()?, filter.limit)?))
-        }
-    }).await?))
+    let mut conn = conn.get().await?;
+    let filter = filter.into_inner();
+    match filter.filter {
+        Some(search) => Ok(Json(json!(bounds::filter(&mut *conn, &search, filter.limit).await?))),
+        None => Ok(Json(json!(bounds::list(&mut *conn, filter.limit).await?)))
+    }
 }
 
 async fn bounds_get(
@@ -1122,7 +1073,7 @@ async fn bounds_get(
 ) -> Result<HttpResponse, HecateError> {
     auth::check(&auth_rules.0.bounds.list, auth::RW::Read, &auth)?;
 
-    Ok(HttpResponse::Ok().streaming(bounds::get(conn.get()?, bounds.into_inner())?))
+    Ok(HttpResponse::Ok().streaming(bounds::get(conn.dedicated().await?, bounds.into_inner()).await?))
 }
 
 async fn bounds_set(
@@ -1133,7 +1084,6 @@ async fn bounds_set(
     mut body: web::Payload
 ) -> Result<Json<serde_json::Value>, HecateError> {
     auth::check(&auth_rules.0.bounds.create, auth::RW::Full, &auth)?;
-    let conn = conn.get()?;
 
     let mut bytes = bytes::BytesMut::new();
     while let Some(item) = body.next().await {
@@ -1151,7 +1101,8 @@ async fn bounds_set(
         }
     };
 
-    Ok(Json(json!(bounds::set(&*conn, &bounds, &geom)?)))
+    let mut conn = conn.get().await?;
+    Ok(Json(json!(bounds::set(&mut *conn, &bounds, &geom).await?)))
 }
 
 async fn bounds_delete(
@@ -1160,11 +1111,10 @@ async fn bounds_delete(
     auth_rules: web::Data<auth::AuthContainer>,
     bounds: web::Path<String>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(Json(web::block(move || {
-        auth::check(&auth_rules.0.bounds.delete, auth::RW::Full, &auth)?;
+    auth::check(&auth_rules.0.bounds.delete, auth::RW::Full, &auth)?;
 
-        Ok(json!(bounds::delete(&*conn.get()?, &bounds.into_inner())?))
-    }).await?))
+        let mut conn = conn.get().await?;
+        Ok(Json(json!(bounds::delete(&mut *conn, &bounds.into_inner()).await?)))
 }
 
 async fn webhooks_list(
@@ -1172,13 +1122,12 @@ async fn webhooks_list(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(web::block(move || {
-        auth::check(&auth_rules.0.webhooks.get, auth::RW::Read, &auth)?;
+    auth::check(&auth_rules.0.webhooks.get, auth::RW::Read, &auth)?;
 
-        let hooks = webhooks::list(&*conn.get()?, webhooks::Action::All)?;
-        let values: Vec<serde_json::Value> = hooks.into_iter().map(|h| h.to_value()).collect();
-        Ok(Json(serde_json::Value::Array(values)))
-    }).await?)
+    let mut conn = conn.get().await?;
+    let hooks = webhooks::list(&mut *conn, webhooks::Action::All).await?;
+    let values: Vec<serde_json::Value> = hooks.into_iter().map(|h| h.to_value()).collect();
+    Ok(Json(serde_json::Value::Array(values)))
 }
 
 async fn webhooks_get(
@@ -1187,12 +1136,11 @@ async fn webhooks_get(
     auth_rules: web::Data<auth::AuthContainer>,
     id: web::Path<i64>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(web::block(move || {
-        auth::check(&auth_rules.0.webhooks.get, auth::RW::Read, &auth)?;
+    auth::check(&auth_rules.0.webhooks.get, auth::RW::Read, &auth)?;
 
-        let hook = webhooks::get(&*conn.get()?, id.into_inner())?.to_value();
-        Ok(Json(hook))
-    }).await?)
+    let mut conn = conn.get().await?;
+    let hook = webhooks::get(&mut *conn, id.into_inner()).await?.to_value();
+    Ok(Json(hook))
 }
 
 async fn webhooks_delete(
@@ -1201,11 +1149,10 @@ async fn webhooks_delete(
     auth_rules: web::Data<auth::AuthContainer>,
     id: web::Path<i64>
 ) -> Result<Json<bool>, HecateError> {
-    Ok(web::block(move || {
-        auth::check(&auth_rules.0.webhooks.set, auth::RW::Full, &auth)?;
+    auth::check(&auth_rules.0.webhooks.set, auth::RW::Full, &auth)?;
 
-        Ok(Json(webhooks::delete(&*conn.get()?, id.into_inner())?))
-    }).await?)
+    let mut conn = conn.get().await?;
+    Ok(Json(webhooks::delete(&mut *conn, id.into_inner()).await?))
 }
 
 async fn webhooks_create(
@@ -1214,14 +1161,13 @@ async fn webhooks_create(
     auth_rules: web::Data<auth::AuthContainer>,
     webhook: Json<webhooks::WebHook>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(web::block(move || {
-        auth::check(&auth_rules.0.webhooks.set, auth::RW::Full, &auth)?;
+    auth::check(&auth_rules.0.webhooks.set, auth::RW::Full, &auth)?;
 
-        match serde_json::to_value(webhooks::create(&*conn.get()?, webhook.into_inner())?) {
-            Ok(webhook) => Ok(Json(webhook)),
-            Err(err) => Err(HecateError::new(500, String::from("Failed to create webhook"), Some(err.to_string())))
-        }
-    }).await?)
+    let mut conn = conn.get().await?;
+    match serde_json::to_value(webhooks::create(&mut *conn, webhook.into_inner()).await?) {
+        Ok(webhook) => Ok(Json(webhook)),
+        Err(err) => Err(HecateError::new(500, String::from("Failed to create webhook"), Some(err.to_string())))
+    }
 }
 
 async fn webhooks_update(
@@ -1231,14 +1177,13 @@ async fn webhooks_update(
     mut webhook: Json<webhooks::WebHook>,
     id: web::Path<i64>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(web::block(move || {
-        auth::check(&auth_rules.0.webhooks.set, auth::RW::Full, &auth)?;
+    auth::check(&auth_rules.0.webhooks.set, auth::RW::Full, &auth)?;
 
-        webhook.id = Some(id.into_inner());
+    let mut conn = conn.get().await?;
+    webhook.id = Some(id.into_inner());
 
-        let hook = webhooks::update(&*conn.get()?, webhook.into_inner())?.to_value();
-        Ok(Json(hook))
-    }).await?)
+    let hook = webhooks::update(&mut *conn, webhook.into_inner()).await?.to_value();
+    Ok(Json(hook))
 }
 
 async fn bounds_stats(
@@ -1247,11 +1192,10 @@ async fn bounds_stats(
     auth_rules: web::Data<auth::AuthContainer>,
     bound: web::Path<String>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(Json(web::block(move || {
-        auth::check(&auth_rules.0.stats.get, auth::RW::Read, &auth)?;
+    auth::check(&auth_rules.0.stats.get, auth::RW::Read, &auth)?;
 
-        Ok(bounds::stats_json(&*conn.get()?, bound.into_inner())?)
-    }).await?))
+    let mut conn = conn.get().await?;
+    Ok(Json(bounds::stats_json(&mut *conn, bound.into_inner()).await?))
 }
 
 async fn bounds_meta(
@@ -1260,11 +1204,10 @@ async fn bounds_meta(
     auth_rules: web::Data<auth::AuthContainer>,
     bound: web::Path<String>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(Json(web::block(move || {
-        auth::check(&auth_rules.0.bounds.get, auth::RW::Read, &auth)?;
+    auth::check(&auth_rules.0.bounds.get, auth::RW::Read, &auth)?;
 
-        Ok(bounds::meta(&*conn.get()?, bound.into_inner())?)
-    }).await?))
+    let mut conn = conn.get().await?;
+    Ok(Json(bounds::meta(&mut *conn, bound.into_inner()).await?))
 }
 
 async fn clone_query(
@@ -1275,7 +1218,7 @@ async fn clone_query(
 ) -> Result<HttpResponse, HecateError> {
     auth::check(&auth_rules.0.clone.query, auth::RW::Read, &auth)?;
 
-    Ok(HttpResponse::Ok().streaming(clone::query(sandbox_conn.get()?, &cquery.query, &cquery.limit)?))
+    Ok(HttpResponse::Ok().streaming(clone::query(sandbox_conn.dedicated().await?, &cquery.query, &cquery.limit).await?))
 }
 
 async fn clone_get(
@@ -1285,7 +1228,7 @@ async fn clone_get(
 ) -> Result<HttpResponse, HecateError> {
     auth::check(&auth_rules.0.clone.get, auth::RW::Read, &auth)?;
 
-    Ok(HttpResponse::Ok().streaming(clone::get(conn.get()?)?))
+    Ok(HttpResponse::Ok().streaming(clone::get(conn.dedicated().await?).await?))
 }
 
 async fn features_query(
@@ -1301,9 +1244,9 @@ async fn features_query(
     } else if map.bbox.is_some() {
         let bbox: Vec<f64> = map.bbox.as_ref().unwrap().split(',').map(|s| s.parse().unwrap()).collect();
 
-        Ok(HttpResponse::Ok().streaming(feature::get_bbox_stream(conn.get()?, &bbox)?))
+        Ok(HttpResponse::Ok().streaming(feature::get_bbox_stream(conn.dedicated().await?, &bbox).await?))
     } else if map.point.is_some() {
-        Ok(HttpResponse::Ok().streaming(feature::get_point_stream(conn.get()?, &map.point.as_ref().unwrap())?))
+        Ok(HttpResponse::Ok().streaming(feature::get_point_stream(conn.dedicated().await?, &map.point.as_ref().unwrap()).await?))
     } else {
         Err(HecateError::new(400, String::from("key or point param must be used"), None))
     }
@@ -1322,9 +1265,9 @@ async fn features_history_query(
     } else if map.bbox.is_some() {
         let bbox: Vec<f64> = map.bbox.as_ref().unwrap().split(',').map(|s| s.parse().unwrap()).collect();
 
-        Ok(HttpResponse::Ok().streaming(feature::get_bbox_history_stream(conn.get()?, &bbox)?))
+        Ok(HttpResponse::Ok().streaming(feature::get_bbox_history_stream(conn.dedicated().await?, &bbox).await?))
     } else if map.point.is_some() {
-        Ok(HttpResponse::Ok().streaming(feature::get_point_history_stream(conn.get()?, &map.point.as_ref().unwrap())?))
+        Ok(HttpResponse::Ok().streaming(feature::get_point_history_stream(conn.dedicated().await?, &map.point.as_ref().unwrap()).await?))
     } else {
         Err(HecateError::new(400, String::from("key or point param must be used"), None))
     }
@@ -1357,11 +1300,10 @@ async fn stats_get(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(Json(web::block(move || {
-        auth::check(&auth_rules.0.stats.get, auth::RW::Read, &auth)?;
+    auth::check(&auth_rules.0.stats.get, auth::RW::Read, &auth)?;
 
-        Ok(stats::get_json(&*conn.get()?)?)
-    }).await?))
+    let mut conn = conn.get().await?;
+    Ok(Json(stats::get_json(&mut *conn).await?))
 }
 
 async fn stats_regen(
@@ -1369,11 +1311,10 @@ async fn stats_regen(
     auth: auth::Auth,
     auth_rules: web::Data<auth::AuthContainer>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(Json(web::block(move || {
-        auth::check(&auth_rules.0.stats.get, auth::RW::Read, &auth)?;
+    auth::check(&auth_rules.0.stats.get, auth::RW::Read, &auth)?;
 
-        Ok(json!(stats::regen(&*conn.get()?)?))
-    }).await?))
+    let mut conn = conn.get().await?;
+    Ok(Json(json!(stats::regen(&mut *conn).await?)))
 }
 
 async fn features_action(
@@ -1384,7 +1325,6 @@ async fn features_action(
     schema: web::Data<Option<serde_json::value::Value>>,
     mut body: web::Payload
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    let conn = conn.get()?;
     auth::check(&auth_rules.0.feature.create, auth::RW::Full, &auth)?;
 
     let uid = auth.uid.unwrap();
@@ -1419,7 +1359,8 @@ async fn features_action(
         }
     };
 
-    let trans = match conn.transaction() {
+    let mut conn = conn.get().await?;
+    let mut trans = match conn.transaction().await {
         Ok(trans) => trans,
         Err(err) => { return Err(HecateError::new(500, String::from("Failed to open transaction"), Some(err.to_string()))); }
     };
@@ -1427,11 +1368,10 @@ async fn features_action(
     let mut map: HashMap<String, Option<String>> = HashMap::new();
     map.insert(String::from("message"), Some(delta_message));
 
-    let delta_id = match delta::open(&trans, &map, uid) {
+    let delta_id = match delta::open(&mut trans, &map, uid).await {
         Ok(id) => id,
         Err(err) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback().await.unwrap();
             return Err(err);
         }
     };
@@ -1448,10 +1388,9 @@ async fn features_action(
             }
         };
 
-        match feature::action(&trans, &schema, &feat, &None) {
+        match feature::action(&mut trans, &schema, &feat, &None).await {
             Err(err) => {
-                trans.set_rollback();
-                trans.finish().unwrap();
+                trans.rollback().await.unwrap();
                 return Err(err);
             },
             Ok(res) => {
@@ -1462,15 +1401,14 @@ async fn features_action(
         };
     }
 
-    if let Err(err) = delta::modify(delta_id, &trans, &fc, uid) {
-        trans.set_rollback();
-        trans.finish().unwrap();
+    if let Err(err) = delta::modify(delta_id, &mut trans, &fc, uid).await {
+        trans.rollback().await.unwrap();
         return Err(err);
     }
 
-    match delta::finalize(delta_id, &trans) {
+    match delta::finalize(delta_id, &mut trans).await {
         Ok(_) => {
-            if trans.commit().is_err() {
+            if trans.commit().await.is_err() {
                 return Err(HecateError::new(500, String::from("Failed to commit transaction"), None));
             }
 
@@ -1479,8 +1417,7 @@ async fn features_action(
             Ok(Json(json!(true)))
         },
         Err(err) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback().await.unwrap();
             Err(err)
         }
     }
@@ -1496,7 +1433,7 @@ async fn osm_map(
 
     let query: Vec<f64> = map.bbox.as_ref().unwrap().split(',').map(|s| s.parse().unwrap()).collect();
 
-    let fc = feature::get_bbox(&*conn.get()?, query)?;
+    let fc = feature::get_bbox(&mut *conn.get().await?, query).await?;
 
     let xml_str = match osm::from_features(&fc) {
         Ok(xml_str) => xml_str,
@@ -1512,8 +1449,6 @@ async fn osm_changeset_create(
     conn: web::Data<DbReadWrite>,
     mut body: web::Payload
 ) -> Result<String, HecateError> {
-    let conn = conn.get()?;
-
     auth::check(&auth_rules.0.osm.create, auth::RW::Full, &auth)?;
 
     let uid = auth.uid.unwrap();
@@ -1533,21 +1468,21 @@ async fn osm_changeset_create(
         Err(err) => { return Err(HecateError::new(500, err.to_string(), None)); }
     };
 
-    let trans = match conn.transaction() {
+    let mut conn = conn.get().await?;
+    let mut trans = match conn.transaction().await {
         Ok(trans) => trans,
         Err(err) => { return Err(HecateError::new(500, String::from("Failed to open transaction"), Some(err.to_string()))); }
     };
 
-    let delta_id = match delta::open(&trans, &map, uid) {
+    let delta_id = match delta::open(&mut trans, &map, uid).await {
         Ok(id) => id,
         Err(err) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback().await.unwrap();
             return Err(err);
         }
     };
 
-    if trans.commit().is_err() {
+    if trans.commit().await.is_err() {
         return Err(HecateError::new(500, String::from("Failed to commit transaction"), None));
     }
 
@@ -1571,8 +1506,6 @@ async fn osm_changeset_modify(
     delta_id: web::Path<i64>,
     mut body: web::Payload
 ) -> Result<HttpResponse, HecateError> {
-    let conn = conn.get()?;
-
     auth::check(&auth_rules.0.osm.create, auth::RW::Full, &auth)?;
 
     let uid = auth.uid.unwrap();
@@ -1587,19 +1520,18 @@ async fn osm_changeset_modify(
         Err(err) => { return Err(HecateError::new(400, String::from("Invalid UTF8 Body"), Some(err.to_string()))); }
     };
 
-    let trans = match conn.transaction() {
+    let mut conn = conn.get().await?;
+    let mut trans = match conn.transaction().await {
         Ok(trans) => trans,
         Err(err) => { return Err(HecateError::new(500, String::from("Failed to open transaction"), Some(err.to_string()))); }
     };
 
     let delta_id = delta_id.into_inner();
 
-    match delta::is_open(delta_id, &trans) {
+    match delta::is_open(delta_id, &mut trans).await {
         Ok(true) => (),
         _ => {
-            trans.set_rollback();
-            trans.finish().unwrap();
-
+            trans.rollback().await.unwrap();
 
             let conflict = format!("The changeset {} was closed at previously", &delta_id);
             return Ok(HttpResponse::build(actix_web::http::StatusCode::CONFLICT)
@@ -1612,22 +1544,20 @@ async fn osm_changeset_modify(
     let map = match osm::to_delta(&body) {
         Ok(map) => map,
         Err(err) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback().await.unwrap();
             return Err(HecateError::new(500, err.to_string(), None));
         }
     };
 
-    let delta_id = match delta::modify_props(delta_id, &trans, &map, uid) {
+    let delta_id = match delta::modify_props(delta_id, &mut trans, &map, uid).await {
         Ok(id) => id,
         Err(err) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback().await.unwrap();
             return Err(err);
         }
     };
 
-    if trans.commit().is_err() {
+    if trans.commit().await.is_err() {
         return Err(HecateError::new(500, String::from("Failed to commit transaction"), None));
     }
 
@@ -1646,8 +1576,6 @@ async fn osm_changeset_upload(
     delta_id: web::Path<i64>,
     mut body: web::Payload
 ) -> Result<HttpResponse, HecateError> {
-    let conn = conn.get()?;
-
     auth::check(&auth_rules.0.osm.create, auth::RW::Full, &auth)?;
 
     let uid = auth.uid.unwrap();
@@ -1662,17 +1590,17 @@ async fn osm_changeset_upload(
         Err(err) => { return Err(HecateError::new(400, String::from("Invalid UTF8 Body"), Some(err.to_string()))); }
     };
 
-    let trans = match conn.transaction() {
+    let mut conn = conn.get().await?;
+    let mut trans = match conn.transaction().await {
         Ok(trans) => trans,
         Err(_) => { return Err(HecateError::new(500, String::from("Failed to open transaction"), None)); }
     };
 
     let delta_id = delta_id.into_inner();
-    match delta::is_open(delta_id, &trans) {
+    match delta::is_open(delta_id, &mut trans).await {
         Ok(true) => (),
         _ => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback().await.unwrap();
 
             let conflict = format!("The changeset {} was closed at previously", &delta_id);
             return Ok(HttpResponse::build(actix_web::http::StatusCode::CONFLICT)
@@ -1696,10 +1624,9 @@ async fn osm_changeset_upload(
             }
         }
 
-        let feat_res = match feature::action(&trans, &schema, &feat, &Some(delta_id)) {
+        let feat_res = match feature::action(&mut trans, &schema, &feat, &Some(delta_id)).await {
             Err(err) => {
-                trans.set_rollback();
-                trans.finish().unwrap();
+                trans.rollback().await.unwrap();
                 return Err(err);
             },
             Ok(feat_res) => {
@@ -1716,25 +1643,23 @@ async fn osm_changeset_upload(
 
     let diffres = match osm::to_diffresult(ids, tree) {
         Err(_) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback().await.unwrap();
             return Err(HecateError::new(500, String::from("Could not format diffResult XML"), None));
         },
         Ok(diffres) => diffres
     };
 
-    match delta::modify(delta_id, &trans, &fc, uid) {
+    match delta::modify(delta_id, &mut trans, &fc, uid).await {
         Ok (_) => (),
         Err(_) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback().await.unwrap();
             return Err(HecateError::new(500, String::from("Could not create delta"), None));
         }
     }
 
-    match delta::finalize(delta_id, &trans) {
+    match delta::finalize(delta_id, &mut trans).await {
         Ok (_) => {
-            if trans.commit().is_err() {
+            if trans.commit().await.is_err() {
                 return Err(HecateError::new(500, String::from("Failed to commit transaction"), None));
             }
 
@@ -1745,8 +1670,7 @@ async fn osm_changeset_upload(
                 .body(diffres))
         },
         Err(_) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback().await.unwrap();
             Err(HecateError::new(500, String::from("Could not close delta"), None))
         }
     }
@@ -1800,8 +1724,6 @@ async fn feature_action(
     worker: web::Data<worker::Worker>,
     mut body: web::Payload
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    let conn = conn.get()?;
-
     auth::check(&auth_rules.0.feature.create, auth::RW::Full, &auth)?;
 
     let uid = auth.uid.unwrap();
@@ -1839,32 +1761,31 @@ async fn feature_action(
         }
     };
 
-    let trans = match conn.transaction() {
+    let mut conn = conn.get().await?;
+    let mut trans = match conn.transaction().await {
         Ok(trans) => trans,
         Err(err) => { return Err(HecateError::new(500, String::from("Failed to open transaction"), Some(err.to_string()))); }
     };
 
     let mut map: HashMap<String, Option<String>> = HashMap::new();
     map.insert(String::from("message"), Some(delta_message));
-    let delta_id = match delta::open(&trans, &map, uid) { // add non feature info to deltas table, get next delta id
+    let delta_id = match delta::open(&mut trans, &map, uid).await { // add non feature info to deltas table, get next delta id
         Ok(id) => id,
         Err(err) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback().await.unwrap();
             return Err(err);
         }
     };
     // inserts feature into geo table
     // version is incremented by 1 here
-    match feature::action(&trans, &schema, &feat, &None) {
+    match feature::action(&mut trans, &schema, &feat, &None).await {
         Ok(res) => {
             if res.new.is_some() {
                 feat.id = Some(geojson::feature::Id::Number(serde_json::Number::from(res.new.unwrap())));
             }
         },
         Err(err) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback().await.unwrap();
             return Err(err);
         }
     }
@@ -1875,15 +1796,14 @@ async fn feature_action(
         foreign_members: None,
     };
     // modifies the delta entry to include the features json blob
-    if let Err(err) = delta::modify(delta_id, &trans, &fc, uid) {
-        trans.set_rollback();
-        trans.finish().unwrap();
+    if let Err(err) = delta::modify(delta_id, &mut trans, &fc, uid).await {
+        trans.rollback().await.unwrap();
         return Err(err);
     }
 
-    match delta::finalize(delta_id, &trans) {
+    match delta::finalize(delta_id, &mut trans).await {
         Ok(_) => {
-            if trans.commit().is_err() {
+            if trans.commit().await.is_err() {
                 return Err(HecateError::new(500, String::from("Failed to commit transaction"), None));
             }
             // triggers webhook
@@ -1892,8 +1812,7 @@ async fn feature_action(
             Ok(Json(json!(true)))
         },
         Err(err) => {
-            trans.set_rollback();
-            trans.finish().unwrap();
+            trans.rollback().await.unwrap();
             Err(err)
         }
     }
@@ -1905,14 +1824,10 @@ async fn feature_get(
     auth_rules: web::Data<auth::AuthContainer>,
     id: web::Path<i64>
 ) -> Result<HttpResponse, HecateError> {
-    let feature = web::block(move || {
-        auth::check(&auth_rules.0.feature.get, auth::RW::Read, &auth)?;
+    auth::check(&auth_rules.0.feature.get, auth::RW::Read, &auth)?;
 
-        match feature::get(&*conn.get()?, id.into_inner()) {
-            Ok(feature) => Ok(geojson::GeoJson::from(feature).to_string()),
-            Err(err) => Err(err)
-        }
-    }).await?;
+    let mut conn = conn.get().await?;
+    let feature = feature::get(&mut *conn, id.into_inner()).await?.to_string();
 
     Ok(HttpResponse::build(actix_web::http::StatusCode::OK)
         .content_type("application/json")
@@ -1926,11 +1841,10 @@ async fn feature_get_history(
     auth_rules: web::Data<auth::AuthContainer>,
     id: web::Path<i64>
 ) -> Result<Json<serde_json::Value>, HecateError> {
-    Ok(Json(web::block(move || {
-        auth::check(&auth_rules.0.feature.history, auth::RW::Read, &auth)?;
+    auth::check(&auth_rules.0.feature.history, auth::RW::Read, &auth)?;
 
-        Ok(feature::history(&*conn.get()?, id.into_inner())?)
-    }).await?))
+    let mut conn = conn.get().await?;
+    Ok(Json(feature::history(&mut *conn, id.into_inner()).await?))
 }
 
 async fn feature_query(
@@ -1944,9 +1858,9 @@ async fn feature_query(
     if fquery.key.is_some() && fquery.point.is_some() {
         Err(HecateError::new(400, String::from("key and point params cannot be used together"), None))
     } else if fquery.key.is_some() {
-        Ok(Json(feature::query_by_key(&*conn.get()?, &fquery.key.as_ref().unwrap())?))
+        Ok(Json(feature::query_by_key(&mut *conn.get().await?, &fquery.key.as_ref().unwrap()).await?))
     } else if fquery.point.is_some() {
-        let mut results = feature::query_by_point(&*conn.get()?, &fquery.point.as_ref().unwrap())?;
+        let mut results = feature::query_by_point(&mut *conn.get().await?, &fquery.point.as_ref().unwrap()).await?;
         Ok(Json(results.pop().unwrap()))
     } else {
         Err(HecateError::new(400, String::from("key or point param must be used"), None))

@@ -1,7 +1,9 @@
 use crate::err::HecateError;
+use bb8_postgres::PostgresConnectionManager;
+use tokio_postgres::Client;
 
-use r2d2::{Pool, PooledConnection};
-use r2d2_postgres::{PostgresConnectionManager, TlsMode};
+pub type ConnectionManager = bb8_postgres::PostgresConnectionManager<tokio_postgres::NoTls>;
+pub type Pool = bb8::Pool<ConnectionManager>;
 
 use rand::prelude::*;
 
@@ -20,38 +22,72 @@ impl Database {
             sandbox
         }
     }
+
+    pub async fn explode(&self) -> (DbReplica, DbSandbox, DbReadWrite) {
+        let mut db_replica: Vec<Pool> = Vec::with_capacity(self.replica.len());
+        let mut db_sandbox: Vec<Pool> = Vec::with_capacity(self.sandbox.len());
+
+        for dbstr in self.replica.iter() {
+            db_replica.push(init_pool(&dbstr).await);
+        }
+        let db_replica = DbReplica::new(Some(db_replica));
+
+        for dbstr in self.sandbox.iter() {
+            db_sandbox.push(init_pool(&dbstr).await);
+        }
+        let db_sandbox = DbSandbox::new(Some(db_sandbox));
+
+        let db_main = DbReadWrite::new(init_pool(&self.main).await);
+
+        (db_replica, db_sandbox, db_main)
+    }
 }
 
-pub type PostgresPool = Pool<PostgresConnectionManager>;
-pub type PostgresPooledConnection = PooledConnection<PostgresConnectionManager>;
+pub async fn init_pool(
+    database: &str
+) -> Pool {
+    let manager = PostgresConnectionManager::new(
+        format!("postgres://{}", database).parse().unwrap(),
+        tokio_postgres::NoTls
+    );
 
-pub fn init_pool(database: &str) -> r2d2::Pool<r2d2_postgres::PostgresConnectionManager> {
-    //Create Postgres Connection Pool
-    let manager = ::r2d2_postgres::PostgresConnectionManager::new(format!("postgres://{}", database), TlsMode::None).unwrap();
-    match r2d2::Pool::builder().max_size(15).build(manager) {
-        Ok(pool) => pool,
-        Err(_) => {
-            println!("ERROR: Failed to connect to database");
-            std::process::exit(1);
-        }
-    }
+    Pool::builder()
+        .max_size(15)
+        .build(manager)
+        .await
+        .unwrap()
 }
 
 #[derive(Clone)]
-pub struct DbReplica(pub Option<Vec<r2d2::Pool<r2d2_postgres::PostgresConnectionManager>>>);
+pub struct DbReplica(pub Option<Vec<Pool>>);
 impl DbReplica {
-    pub fn new(database: Option<Vec<r2d2::Pool<r2d2_postgres::PostgresConnectionManager>>>) -> Self {
+    pub fn new(database: Option<Vec<Pool>>) -> Self {
         DbReplica(database)
     }
 
-    pub fn get(&self) -> Result<r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager>, HecateError> {
+    pub async fn dedicated(&self) -> Result<Client, HecateError> {
         match self.0 {
             None => Err(HecateError::new(503, String::from("No Database Replica Connection"), None)),
             Some(ref db_replica) => {
                 let mut rng = thread_rng();
                 let db_replica_it = rng.gen_range(0, db_replica.len());
 
-                match db_replica.get(db_replica_it).unwrap().get() {
+                match db_replica.get(db_replica_it).unwrap().dedicated_connection().await {
+                    Ok(conn) => Ok(conn),
+                    Err(_) => Err(HecateError::new(503, String::from("Could not connect to database"), None))
+                }
+            }
+        }
+    }
+
+    pub async fn get(self) -> Result<bb8::PooledConnection<'static, bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>, HecateError> {
+        match self.0 {
+            None => Err(HecateError::new(503, String::from("No Database Replica Connection"), None)),
+            Some(ref db_replica) => {
+                let mut rng = thread_rng();
+                let db_replica_it = rng.gen_range(0, db_replica.len());
+
+                match db_replica.get(db_replica_it).unwrap().get().await {
                     Ok(conn) => Ok(conn),
                     Err(_) => Err(HecateError::new(503, String::from("Could not connect to database"), None))
                 }
@@ -61,20 +97,35 @@ impl DbReplica {
 }
 
 #[derive(Clone)]
-pub struct DbSandbox(pub Option<Vec<r2d2::Pool<r2d2_postgres::PostgresConnectionManager>>>);
+pub struct DbSandbox(pub Option<Vec<Pool>>);
 impl DbSandbox {
-    pub fn new(database: Option<Vec<r2d2::Pool<r2d2_postgres::PostgresConnectionManager>>>) -> Self {
+    pub fn new(database: Option<Vec<Pool>>) -> Self {
         DbSandbox(database)
     }
 
-    pub fn get(&self) -> Result<r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager>, HecateError> {
+    pub async fn dedicated(&self) -> Result<Client, HecateError> {
+        match self.0 {
+            None => Err(HecateError::new(503, String::from("No Database Replica Connection"), None)),
+            Some(ref db_replica) => {
+                let mut rng = thread_rng();
+                let db_replica_it = rng.gen_range(0, db_replica.len());
+
+                match db_replica.get(db_replica_it).unwrap().dedicated_connection().await {
+                    Ok(conn) => Ok(conn),
+                    Err(_) => Err(HecateError::new(503, String::from("Could not connect to database"), None))
+                }
+            }
+        }
+    }
+
+    pub async fn get(self) -> Result<bb8::PooledConnection<'static, bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>, HecateError> {
         match self.0 {
             None => Err(HecateError::new(503, String::from("No Database Sandbox Connection"), None)),
             Some(ref db_sandbox) => {
                 let mut rng = thread_rng();
                 let db_sandbox_it = rng.gen_range(0, db_sandbox.len());
 
-                match db_sandbox.get(db_sandbox_it).unwrap().get() {
+                match db_sandbox.get(db_sandbox_it).unwrap().get().await {
                     Ok(conn) => Ok(conn),
                     Err(_) => Err(HecateError::new(503, String::from("Could not connect to database"), None))
                 }
@@ -84,14 +135,14 @@ impl DbSandbox {
 }
 
 #[derive(Clone)]
-pub struct DbReadWrite(pub r2d2::Pool<r2d2_postgres::PostgresConnectionManager>); //Read & Write DB Connection
+pub struct DbReadWrite(pub Pool); //Read & Write DB Connection
 impl DbReadWrite {
-    pub fn new(database: r2d2::Pool<r2d2_postgres::PostgresConnectionManager>) -> Self {
+    pub fn new(database: Pool) -> Self {
         DbReadWrite(database)
     }
 
-    pub fn get(&self) -> Result<r2d2::PooledConnection<r2d2_postgres::PostgresConnectionManager>, HecateError> {
-        match self.0.get() {
+    pub async fn get(self) -> Result<bb8::PooledConnection<'static, bb8_postgres::PostgresConnectionManager<tokio_postgres::tls::NoTls>>, HecateError> {
+        match self.0.get().await {
             Ok(conn) => Ok(conn),
             Err(_) => Err(HecateError::new(503, String::from("Could not connect to database"), None))
         }

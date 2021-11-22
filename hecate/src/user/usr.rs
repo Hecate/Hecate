@@ -38,7 +38,7 @@ impl User {
         })
     }
 
-    pub fn reset(conn: &impl postgres::GenericConnection, uid: i64, current: &String, new: &String) -> Result<bool, HecateError> {
+    pub async fn reset(conn: &mut tokio_postgres::Client, uid: i64, current: &String, new: &String) -> Result<bool, HecateError> {
         validate::password(&new)?;
 
         match conn.query("
@@ -50,7 +50,7 @@ impl User {
                     AND password = crypt($2, password)
                 RETURNING
                     users
-        ", &[ &uid, &current, &new ]) {
+        ", &[ &uid, &current, &new ]).await {
             Ok(users) => {
                 if users.len() == 0 {
                     Err(HecateError::new(400, String::from("Incorrect Current Password"), None))
@@ -81,7 +81,7 @@ impl User {
         };
     }
 
-    pub fn set(&self, conn: &impl postgres::GenericConnection) -> Result<bool, HecateError> {
+    pub async fn set(&self, conn: &mut tokio_postgres::Client) -> Result<bool, HecateError> {
         if self.id.is_some() {
             match conn.query("
                 UPDATE users
@@ -92,7 +92,7 @@ impl User {
                         access = COALESCE($4, access)
                     WHERE
                         id = $5
-            ", &[ &self.username, &self.email, &self.meta, &self.access, &self.id ]) {
+            ", &[ &self.username, &self.email, &self.meta, &self.access, &self.id ]).await {
                 Ok(_) => (),
                 Err(err) => { return Err(HecateError::from_db(err)); }
             };
@@ -109,7 +109,7 @@ impl User {
                         password = crypt(random()::TEXT, gen_salt('bf', 10))
                     WHERE
                         id = $1
-            ", &[ &self.id ]) {
+            ", &[ &self.id ]).await {
                 Ok(_) => (),
                 Err(err) => { return Err(HecateError::from_db(err)); }
             };
@@ -119,7 +119,7 @@ impl User {
                 DELETE FROM users_tokens
                     WHERE
                         uid = $1
-            ", &[ &self.id ]) {
+            ", &[ &self.id ]).await {
                 Ok(_) => (),
                 Err(err) => { return Err(HecateError::from_db(err)); }
             };
@@ -138,10 +138,10 @@ impl User {
             match conn.query("
                 INSERT INTO users (username, password, email, meta, access)
                     VALUES ($1, crypt($2, gen_salt('bf', 10)), $3, $4, $5);
-            ", &[ &self.username, &password, &self.email, &self.meta, &self.access.as_ref().unwrap_or(&String::from("default")) ]) {
+            ", &[ &self.username, &password, &self.email, &self.meta, &self.access.as_ref().unwrap_or(&String::from("default")) ]).await {
                 Ok(_) => Ok(true),
                 Err(err) => {
-                    if err.as_db().is_some() && err.as_db().unwrap().code.code() == "23505" {
+                    if err.code() == Some(&tokio_postgres::error::SqlState::from_code("23505")) {
                         Err(HecateError::new(400, String::from("User/Email Exists"), None))
                     } else {
                         Err(HecateError::from_db(err))
@@ -151,7 +151,7 @@ impl User {
         }
     }
 
-    pub fn get(conn: &impl postgres::GenericConnection, uid: i64) -> Result<Self, HecateError> {
+    pub async fn get(conn: &mut tokio_postgres::Client, uid: i64) -> Result<Self, HecateError> {
         match conn.query("
             SELECT row_to_json(u)
             FROM (
@@ -165,9 +165,9 @@ impl User {
                     users
                 WHERE id = $1
             ) u
-        ", &[ &uid ]) {
+        ", &[ &uid ]).await {
             Ok(res) => {
-                let res: serde_json::Value = res.get(0).get(0);
+                let res: serde_json::Value = res.get(0).unwrap().get(0);
 
                 let user: User = match serde_json::from_value(res) {
                     Ok(user) => {
@@ -186,7 +186,7 @@ impl User {
 
 }
 
-pub fn list(conn: &impl postgres::GenericConnection, limit: Option<i16>) -> Result<serde_json::Value, HecateError> {
+pub async fn list(conn: &mut tokio_postgres::Client, limit: Option<i16>) -> Result<serde_json::Value, HecateError> {
     let limit: i16 = match limit {
         None => 100,
         Some(limit) => if limit > 100 { 100 } else { limit }
@@ -206,13 +206,13 @@ pub fn list(conn: &impl postgres::GenericConnection, limit: Option<i16>) -> Resu
                 username
             LIMIT $1::SmallInt
         ) row;
-    ", &[ &limit ]) {
-        Ok(rows) => Ok(rows.get(0).get(0)),
+    ", &[ &limit ]).await {
+        Ok(rows) => Ok(rows.get(0).unwrap().get(0)),
         Err(err) => Err(HecateError::from_db(err))
     }
 }
 
-pub fn filter(conn: &impl postgres::GenericConnection, filter: &str, limit: Option<i16>) -> Result<serde_json::Value, HecateError> {
+pub async fn filter(conn: &mut tokio_postgres::Client, filter: &str, limit: Option<i16>) -> Result<serde_json::Value, HecateError> {
     let limit: i16 = match limit {
         None => 100,
         Some(limit) => if limit > 100 { 100 } else { limit }
@@ -234,8 +234,8 @@ pub fn filter(conn: &impl postgres::GenericConnection, filter: &str, limit: Opti
                 username
             LIMIT $2::SmallInt
         ) row;
-    ", &[ &filter, &limit ]) {
-        Ok(rows) => Ok(rows.get(0).get(0)),
+    ", &[ &filter, &limit ]).await {
+        Ok(rows) => Ok(rows.get(0).unwrap().get(0)),
         Err(err) => Err(HecateError::from_db(err))
     }
 }

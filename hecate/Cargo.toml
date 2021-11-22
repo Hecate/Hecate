@@ -17,27 +17,27 @@ categories = ["database"]
 hecate_derive = { path = "../hecate_derive" }
 futures = "0.3.5"
 reqwest = "0.9.20"
-tilecover = "1.1.1"
+tilecover = "2.0.0"
 crossbeam = "0.7"
 valico = "3.1"
 rand = "0.7"
-postgis = "0.6.0"
+postgis = "0.7.0"
 protobuf = "1.5"
 base64 = "0.12"
 bytes = "0.5"
 actix-rt="1.1.1"
-actix-threadpool = "0.3.2"
-actix-web = "2.0.0"
-actix-files = "0.2.2"
-actix-http = "1.0.1"
+actix-threadpool = "0.3.3"
+actix-web = "3.0.1"
+actix-files = "0.3.0"
+actix-http = "2.0.0"
 actix-service = "1.0.5"
-geojson = "0.16.0"
 quick-xml = "0.18.1"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
-r2d2 = "0.8.6"
-r2d2_postgres = "0.14.0"
+bb8 = "0.4.2"
+bb8-postgres = "0.4.0"
+tokio-postgres = "0.5.4"
 env_logger = "0.7"
 hmac = "0.7"
 url = "2.1"
@@ -45,21 +45,25 @@ sha2 = "0.8.0"
 semver = "0.10.0"
 lazy_static = "1.4.0"
 approx = "0.3"
+geo-postgis="0.1.0"
+
+[dependencies.geojson]
+version = "0.19.0"
+features = ["geo-types"]
 
 [dependencies.geo]
-version = "0.12"
-features = ["postgis-integration"]
+version = "0.14"
+
+[dependencies.postgres]
+version = "0.17.0"
+features = [
+    "with-chrono-0_4",
+    "with-serde_json-1"
+]
 
 [dependencies.chrono]
 version = "0.4"
 features = ["serde"]
-
-[dependencies.postgres]
-version = "0.15.2"
-features = [
-    "with-serde_json",
-    "with-chrono"
-]
 
 [dependencies.clap]
 features = ["yaml"]
